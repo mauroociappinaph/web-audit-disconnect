@@ -1,0 +1,84 @@
+{
+  "audits": [
+    {
+      "id": 1,
+      "nombre": "Detección de Desconexión - Google",
+      "url": "https://google.com",
+      "clientName": "Google Test",
+      "industria": "Tecnología",
+      "tipo": "Principal"
+    },
+    {
+      "id": 2,
+      "nombre": "Detección de Desconexión - GitHub",
+      "url": "https://github.com",
+      "clientName": "GitHub Audit",
+      "industria": "Desarrollo",
+      "tipo": "Principal"
+    },
+    {
+      "id": 3,
+      "nombre": "Detección de Desconexión - MDN",
+      "url": "https://developer.mozilla.org",
+      "clientName": "Mozilla Developer",
+      "industria": "Educación",
+      "tipo": "Principal"
+    },
+    {
+      "id": 4,
+      "nombre": "Detección de Desconexión - Stack Overflow",
+      "url": "https://stackoverflow.com",
+      "clientName": "Stack Overflow",
+      "industria": "Comunidad",
+      "tipo": "Secundaria"
+    },
+    {
+      "id": 5,
+      "nombre": "Detección de Desconexión - npm",
+      "url": "https://www.npmjs.com",
+      "clientName": "npm Registry",
+      "industria": "Desarrollo",
+      "tipo": "Secundaria"
+    },
+    {
+      "id": 6,
+      "nombre": "Detección de Desconexión - LinkedIn",
+      "url": "https://www.linkedin.com",
+      "clientName": "LinkedIn Corp",
+      "industria": "Redes Sociales",
+      "tipo": "Principal"
+    },
+    {
+      "id": 7,
+      "nombre": "Detección de Desconexión - Twitter",
+      "url": "https://twitter.com",
+      "clientName": "X/Twitter",
+      "industria": "Redes Sociales",
+      "tipo": "Principal"
+    },
+    {
+      "id": 8,
+      "nombre": "Detección de Desconexión - AWS",
+      "url": "https://aws.amazon.com",
+      "clientName": "Amazon Web Services",
+      "industria": "Cloud",
+      "tipo": "Secundaria"
+    },
+    {
+      "id": 9,
+      "nombre": "Detección de Desconexión - Vercel",
+      "url": "https://vercel.com",
+      "clientName": "Vercel Platform",
+      "industria": "Cloud",
+      "tipo": "Secundaria"
+    },
+    {
+      "id": 10,
+      "nombre": "Detección de Desconexión - Figma",
+      "url": "https://www.figma.com",
+      "clientName": "Figma Design",
+      "industria": "Diseño",
+      "tipo": "Principal"
+    }
+  ]
+}
