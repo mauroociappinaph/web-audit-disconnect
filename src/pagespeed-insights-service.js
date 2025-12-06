@@ -8,10 +8,10 @@ export class PageSpeedInsightsService {
   }
 
   async runPSI(url, strategy = 'mobile', options = {}) {
-    // Use mock data if no API key or in development mode
+    // Use unavailable data if no API key (don't simulate)
     if (this.useMockData) {
-      console.log(`🔍 Usando datos simulados de PageSpeed Insights para ${strategy}: ${url}`);
-      return this.getMockData(url, strategy);
+      console.log(`⚠️ API key no disponible - datos no encontrados para ${strategy}: ${url}`);
+      return this.getUnavailableData(url, strategy);
     }
 
     try {
@@ -59,9 +59,9 @@ export class PageSpeedInsightsService {
     } catch (error) {
       console.error(`❌ Error en PSI ${strategy}:`, error.message);
 
-      // Fallback to mock data if API fails
-      console.log(`🔄 Fallback a datos simulados para ${strategy}`);
-      return this.getMockData(url, strategy);
+      // Don't fallback to mock data - return unavailable
+      console.log(`⚠️ Datos no disponibles para ${strategy} - API error`);
+      return this.getUnavailableData(url, strategy);
     }
   }
 
@@ -172,6 +172,109 @@ export class PageSpeedInsightsService {
 
     console.log(`✅ Datos simulados generados para ${strategy} - Score: ${finalScore}/100`);
     return mockData;
+  }
+
+  getUnavailableData(url, strategy) {
+    // Return unavailable data structure with "n/d" values
+    const unavailableData = {
+      strategy,
+      url,
+      timestamp: new Date().toISOString(),
+      score: 'n/d',
+      categories: {
+        performance: { score: 'n/d', title: 'Performance', description: 'Performance category' },
+        accessibility: { score: 'n/d', title: 'Accessibility', description: 'Accessibility category' },
+        'best-practices': { score: 'n/d', title: 'Best Practices', description: 'Best Practices category' },
+        seo: { score: 'n/d', title: 'SEO', description: 'SEO category' }
+      },
+      coreWebVitals: {
+        lcp: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Largest Contentful Paint'
+        },
+        fid: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'First Input Delay'
+        },
+        cls: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Cumulative Layout Shift'
+        }
+      },
+      detailedMetrics: {
+        ttfb: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Time to First Byte'
+        },
+        fcp: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'First Contentful Paint'
+        },
+        lcp: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Largest Contentful Paint'
+        },
+        dcl: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'DOMContentLoaded'
+        },
+        fid: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'First Input Delay'
+        },
+        cls: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Cumulative Layout Shift'
+        },
+        tbt: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Total Blocking Time'
+        },
+        si: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Speed Index'
+        },
+        tti: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Time to Interactive'
+        }
+      },
+      loadingExperience: {
+        OVERALL_CATEGORY: 'n/d'
+      },
+      lighthouseVersion: 'n/d',
+      screenshot: null,
+      audits: {},
+      dataAvailable: false,
+      reason: 'API key no configurada - obtener en https://developers.google.com/speed/docs/insights/v5/get-started'
+    };
+
+    console.log(`⚠️ Datos no disponibles para ${strategy} - API key requerida`);
+    return unavailableData;
   }
 
   getMockScreenshot(strategy) {

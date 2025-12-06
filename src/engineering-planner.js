@@ -168,6 +168,230 @@ export class EngineeringPlanner {
           'Tiempo de carga mejora > 25%',
           'Mejor experiencia de usuario'
         ]
+      },
+      'cdn-cloudflare': {
+        title: 'Configurar Cloudflare para Optimización',
+        description: 'Implementar reglas de cache y optimización en Cloudflare',
+        impact: 'HIGH',
+        effort: 'LOW',
+        timeline: '2-3 días',
+        cost: 200,
+        steps: [
+          'Activar Auto Minify (HTML, CSS, JS)',
+          'Configurar Page Rules para cache agresivo',
+          'Implementar Mirage para imágenes responsivas',
+          'Configurar Polish para optimización de imágenes',
+          'Activar Rocket Loader para JS defer',
+          'Configurar Edge Cache TTL apropiado'
+        ],
+        configScripts: {
+          'page-rules': `# Cloudflare Page Rules para optimización
+# Regla 1: Cache agresivo para assets estáticos
+*.example.com/assets/* -> Cache Level: Aggressive, Edge Cache TTL: 1 año
+
+# Regla 2: Cache para páginas HTML
+*.example.com/* -> Cache Level: Cache Everything, Edge Cache TTL: 5 minutos
+
+# Regla 3: Bypass cache para páginas dinámicas
+*.example.com/cart/* -> Cache Level: Bypass
+*.example.com/checkout/* -> Cache Level: Bypass`,
+          'nginx-config': `# Configuración Nginx para Cloudflare
+location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+
+location / {
+    try_files $uri $uri/ /index.php?$args;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+}`,
+          'apache-config': `# Configuración Apache para Cloudflare
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+</IfModule>`
+        },
+        successMetrics: [
+          'TTFB reducción > 50%',
+          'Tamaño total reducido > 30%',
+          'Lighthouse score > 90'
+        ]
+      },
+      'cdn-aws-cloudfront': {
+        title: 'Configurar AWS CloudFront',
+        description: 'Implementar distribución global con CloudFront',
+        impact: 'HIGH',
+        effort: 'MEDIUM',
+        timeline: '1 semana',
+        cost: 500,
+        steps: [
+          'Crear distribución CloudFront',
+          'Configurar origins (S3 + Origin Server)',
+          'Implementar cache behaviors',
+          'Configurar Lambda@Edge para optimizaciones',
+          'Activar compression automática',
+          'Configurar headers de seguridad'
+        ],
+        configScripts: {
+          'cloudfront-config': `# CloudFront Distribution Config
+{
+  "CallerReference": "web-performance-optimization",
+  "Origins": {
+    "Quantity": 2,
+    "Items": [
+      {
+        "Id": "origin-server",
+        "DomainName": "your-server.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "https-only"
+        }
+      },
+      {
+        "Id": "s3-assets",
+        "DomainName": "your-assets.s3.amazonaws.com",
+        "S3OriginConfig": {}
+      }
+    ]
+  },
+  "CacheBehaviors": {
+    "Quantity": 2,
+    "Items": [
+      {
+        "PathPattern": "/assets/*",
+        "TargetOriginId": "s3-assets",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "MinTTL": 86400,
+        "MaxTTL": 31536000,
+        "DefaultTTL": 86400,
+        "Compress": true
+      },
+      {
+        "PathPattern": "*",
+        "TargetOriginId": "origin-server",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "MinTTL": 0,
+        "MaxTTL": 300,
+        "DefaultTTL": 0,
+        "Compress": true,
+        "ForwardedValues": {
+          "QueryString": true,
+          "Cookies": {
+            "Forward": "whitelist",
+            "WhitelistedNames": ["session_id"]
+          }
+        }
+      }
+    ]
+  }
+}`,
+          'lambda-edge': `# Lambda@Edge para optimización
+'use strict';
+
+exports.handler = (event, context, callback) => {
+    const request = event.Records[0].cf.request;
+    const response = event.Records[0].cf.response;
+
+    // Agregar headers de seguridad
+    if (response) {
+        response.headers['x-frame-options'] = [{key: 'X-Frame-Options', value: 'SAMEORIGIN'}];
+        response.headers['x-content-type-options'] = [{key: 'X-Content-Type-Options', value: 'nosniff'}];
+        response.headers['referrer-policy'] = [{key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin'}];
+    }
+
+    // Optimizar request
+    if (request) {
+        // Agregar headers para mejor cache
+        if (request.uri.match(/\\.(css|js)$/)) {
+            request.headers['cache-control'] = [{key: 'Cache-Control', value: 'public, max-age=31536000, immutable'}];
+        }
+    }
+
+    callback(null, request || response);
+};`
+        },
+        successMetrics: [
+          'Latencia global < 200ms',
+          'TTFB < 100ms',
+          'Disponibilidad > 99.9%'
+        ]
+      },
+      'cdn-akamai': {
+        title: 'Configurar Akamai CDN',
+        description: 'Implementar optimización avanzada con Akamai',
+        impact: 'HIGH',
+        effort: 'HIGH',
+        timeline: '2 semanas',
+        cost: 1500,
+        steps: [
+          'Configurar Ion property',
+          'Implementar Image Manager',
+          'Configurar Adaptive Acceleration',
+          'Activar SureRoute para routing óptimo',
+          'Implementar Global Host',
+          'Configurar reglas de cache avanzadas'
+        ],
+        configScripts: {
+          'akamai-property': `# Akamai Property Manager Config
+{
+  "rules": {
+    "name": "Performance Optimization",
+    "children": [
+      {
+        "name": "Compress Text",
+        "criteria": [
+          {
+            "name": "contentType",
+            "options": {
+              "matchOperator": "IS_ONE_OF",
+              "values": ["text/html", "text/css", "application/javascript"]
+            }
+          }
+        ],
+        "behaviors": [
+          {
+            "name": "gzipResponse",
+            "options": { "enabled": true }
+          }
+        ]
+      },
+      {
+        "name": "Cache Static Assets",
+        "criteria": [
+          {
+            "name": "path",
+            "options": {
+              "matchOperator": "MATCHES_ONE_OF",
+              "values": ["/assets/*", "/static/*"]
+            }
+          }
+        ],
+        "behaviors": [
+          {
+            "name": "caching",
+            "options": {
+              "behavior": "MAX_AGE",
+              "mustRevalidate": false,
+              "ttl": "1d"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}`
+        },
+        successMetrics: [
+          'Tiempo de carga mejora > 50%',
+          'Cache hit rate > 95%',
+          'Latencia < 50ms globalmente'
+        ]
       }
     };
   }

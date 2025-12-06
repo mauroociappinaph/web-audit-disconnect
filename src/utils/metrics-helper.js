@@ -131,6 +131,11 @@ export class MetricsHelper {
   }
 
   static getSemaphorScore(score, metric = null) {
+    // Handle "n/d" values
+    if (score === 'n/d' || score === null || score === undefined) {
+      return { label: 'N/D', color: '#9ca3af', status: 'unknown', icon: '❓' };
+    }
+
     // Handle different score types
     if (typeof score === 'number' && score > 1) {
       // Already a percentage (0-100)
@@ -154,6 +159,11 @@ export class MetricsHelper {
   }
 
   static formatMetricValue(value, unit, metric = null) {
+    // Handle "n/d" values
+    if (value === 'n/d' || value === null || value === undefined) {
+      return 'n/d';
+    }
+
     if (typeof value !== 'number' || isNaN(value)) {
       return 'N/A';
     }
@@ -283,24 +293,26 @@ export class MetricsHelper {
       // Use mobile as primary for critical metrics
       const mobileValue = results.mobile.detailedMetrics?.[metric]?.numericValue ||
                          results.mobile.coreWebVitals?.[metric]?.numericValue ||
-                         (metric === 'score' ? results.mobile.score : 0);
-      return mobileValue;
+                         (metric === 'score' ? results.mobile.score : 'n/d');
+      return mobileValue === 'n/d' ? 'n/d' : mobileValue || 0;
     }
 
     // Single result structure
     if (metric === 'score') {
-      return results.score || 0;
+      return results.score === 'n/d' ? 'n/d' : (results.score || 0);
     }
 
     if (results.detailedMetrics && results.detailedMetrics[metric]) {
-      return results.detailedMetrics[metric].numericValue || 0;
+      const value = results.detailedMetrics[metric].numericValue;
+      return value === 'n/d' ? 'n/d' : (value || 0);
     }
 
     if (results.coreWebVitals && results.coreWebVitals[metric]) {
-      return results.coreWebVitals[metric].numericValue || 0;
+      const value = results.coreWebVitals[metric].numericValue;
+      return value === 'n/d' ? 'n/d' : (value || 0);
     }
 
-    return 0;
+    return 'n/d';
   }
 
   static createComparisonTable(mobileResults, desktopResults) {
@@ -345,8 +357,10 @@ export class MetricsHelper {
   }
 
   static calculateDifference(mobileValue, desktopValue, unit) {
-    if (typeof mobileValue !== 'number' || typeof desktopValue !== 'number') {
-      return { value: 0, display: 'N/A', trend: 'neutral', description: 'No se puede comparar' };
+    // Handle "n/d" values
+    if (mobileValue === 'n/d' || desktopValue === 'n/d' ||
+        typeof mobileValue !== 'number' || typeof desktopValue !== 'number') {
+      return { value: 0, display: 'n/d', trend: 'neutral', description: 'Datos no disponibles' };
     }
 
     const difference = mobileValue - desktopValue;
