@@ -1,6 +1,11 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { writeFileSync, mkdirSync } from 'fs';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
 import { PageSpeedInsightsService } from './pagespeed-insights-service.js';
 import { TechnologyDetector } from './technology-detector.js';
 import { ForensicsEngine } from './forensics-engine.js';
@@ -212,11 +217,12 @@ export class WebAudit {
     const psiResults = await psiService.runComprehensiveAudit(this.url);
 
     // Prepare intermediate results for analysis
-    const intermediateResults = {
-      lighthouse: psiResults.mobile, // Use mobile as primary for analysis
-      technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
-      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], psiResults.mobile)
-    };
+    // Ensure technologies is an array, even if detection fails
+    const technologies = technologyDetector.detect(this.pageHTML, this.responseHeaders) || [];
+
+    // Extract render-blocking resources from PSI results and analyze forensics
+    const renderBlockingResources = psiResults.mobile?.audits?.['render-blocking-resources']?.details?.items || [];
+    const forensics = forensicsEngine.analyzeBottlenecks(this.pageHTML, renderBlockingResources, psiResults.mobile);
 
     // Get additional metrics
     const uptime = await this.checkUptime();
@@ -235,6 +241,37 @@ export class WebAudit {
       psiResults.comparison
     );
 
+    // Analyze server configuration
+    const impactCalculator = new ImpactCalculator();
+    const serverConfiguration = impactCalculator.analyzeServerConfiguration({
+      responseHeaders: this.responseHeaders,
+      pagespeedInsights: psiResults.mobile
+    });
+
+    // Scan for security vulnerabilities
+    logger.info(`🔒 Escaneando vulnerabilidades de seguridad...`);
+    const vulnerabilityScanner = new VulnerabilityScanner();
+    const vulnerabilityAnalysis = await vulnerabilityScanner.scanForVulnerabilities({
+      technologies: technologies,
+      pageHTML: this.pageHTML,
+      responseHeaders: this.responseHeaders
+    });
+
+    // Analyze SEO for single page audit
+    const siteSEOAnalyzer = new SiteSEOAnalyzer();
+    const siteSEOAnalysis = await siteSEOAnalyzer.analyzeSiteSEO({
+      pageAnalyses: [{
+        url: this.url,
+        seo: seo,
+        technologies: technologies
+      }],
+      siteDiscovery: {
+        metadata: {
+          coverage: 100
+        }
+      }
+    });
+
     this.results = {
       client: this.clientName,
       url: this.url,
@@ -245,10 +282,13 @@ export class WebAudit {
       performance,
       seo,
       pagespeedInsights: psiResults, // New PSI results
-      technologies: intermediateResults.technologies,
-      forensics: intermediateResults.forensics,
-      roi: roiCalculator.calculateROI(intermediateResults),
-      engineeringPlan: engineeringPlanner.createImplementationPlan(intermediateResults),
+      technologies: technologies, // Use the ensured array
+      forensics: forensics,
+      serverConfiguration: serverConfiguration, // Add server configuration analysis
+      vulnerabilityAnalysis: vulnerabilityAnalysis, // Add vulnerability scanning
+      siteSEOAnalysis: siteSEOAnalysis, // Add SEO analysis for single page
+      roi: roiCalculator.calculateROI(psiResults), // Use psiResults directly
+      engineeringPlan: engineeringPlanner.createImplementationPlan(psiResults), // Use psiResults directly
       scopeAnalysis, // New scope analysis
       actionableRecommendations, // New actionable recommendations
       pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
@@ -315,7 +355,7 @@ export class WebAudit {
             const psiResults = await psiService.runComprehensiveAudit(page.url);
             const pageHtml = await this.getPageHtml(page.url);
             const pageHeaders = await this.getPageHeaders(page.url);
-            const tech = technologyDetector.detect(pageHtml, pageHeaders);
+            const tech = technologyDetector.detect(pageHtml, pageHeaders) || [];
             const forensics = forensicsEngine.analyzeBottlenecks(pageHtml, [], psiResults.mobile);
             const sslCheck = await this.checkSSLForPage(page.url);
             const linksCheck = await this.checkLinksForPage(page.url, pageHtml);
@@ -344,7 +384,7 @@ export class WebAudit {
             const sslStandard = await this.checkSSLForPage(page.url);
             const linksStandard = await this.checkLinksForPage(page.url, pageHtmlStandard);
             const seoStandard = await this.checkSEOForPage(page.url, pageHtmlStandard);
-            const techStandard = technologyDetector.detect(pageHtmlStandard, pageHeadersStandard);
+            const techStandard = technologyDetector.detect(pageHtmlStandard, pageHeadersStandard) || [];
 
             pageResults = {
               url: page.url,
@@ -369,7 +409,7 @@ export class WebAudit {
             const sslLight = await this.checkSSLForPage(page.url);
             const linksLight = await this.checkLinksForPage(page.url, pageHtmlLight);
             const seoLight = await this.checkSEOForPage(page.url, pageHtmlLight);
-            const techLight = technologyDetector.detect(pageHtmlLight, pageHeadersLight);
+            const techLight = technologyDetector.detect(pageHtmlLight, pageHeadersLight) || [];
 
             pageResults = {
               url: page.url,
@@ -440,7 +480,7 @@ export class WebAudit {
     logger.info(`🔒 Escaneando vulnerabilidades de seguridad...`);
     const vulnerabilityScanner = new VulnerabilityScanner();
     const vulnerabilityAnalysis = await vulnerabilityScanner.scanForVulnerabilities({
-      technologies: pageAnalyses[0]?.technologies || {},
+      technologies: pageAnalyses[0]?.technologies || [], // Ensure technologies is an array
       pageHTML: pageAnalyses[0]?.pageHTML || '',
       responseHeaders: pageAnalyses[0]?.responseHeaders || {}
     });
@@ -450,6 +490,10 @@ export class WebAudit {
     const homepageAnalysis = pageAnalyses.find(p => p.url === this.url || p.url === this.url + '/');
     const performanceImpacts = homepageAnalysis ?
       impactCalculator.calculateAllImpacts(homepageAnalysis) : null;
+
+    // Análisis completo de configuración del servidor
+    const serverConfiguration = homepageAnalysis ?
+      impactCalculator.analyzeServerConfiguration(homepageAnalysis) : null;
 
     const siteRecommendations = this.generateSiteRecommendations(pageAnalyses, siteSummary, performanceImpacts);
     const siteROI = this.calculateSiteROI(pageAnalyses, siteSummary);
@@ -476,6 +520,7 @@ export class WebAudit {
       lighthouseLocalAnalysis: lighthouseLocalAnalysis,
       performanceImpacts: performanceImpacts,
       vulnerabilityAnalysis: vulnerabilityAnalysis,
+      serverConfiguration: serverConfiguration,
 
       // Estadísticas
       totalPagesAnalyzed: pageAnalyses.length,
@@ -828,15 +873,19 @@ export class WebAudit {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async generateReport(format = 'both') {
+  async generateReport(format = 'html', outputPath = null) { // Modified signature
     const generator = new ReportGenerator(this.results);
 
-    if (format === 'html' || format === 'both') {
+    if (outputPath) { // If outputPath is provided, store it
+      generator.outputPath = outputPath;
+    }
+
+    if (format === 'html') {
       generator.generateHTML();
       logger.success(`Reporte HTML generado`);
     }
 
-    if (format === 'json' || format === 'both') {
+    if (format === 'json') {
       generator.generateJSON();
       logger.success(`Reporte JSON generado`);
     }
@@ -847,19 +896,36 @@ export class WebAudit {
 
 // CLI
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const url = process.argv[2];
-  const client = process.argv[3] || 'Default';
+  const args = process.argv.slice(2); // Get all arguments after 'node src/audit.js'
+  let url = null;
+  let client = 'Default';
+  let outputPath = null;
+  let format = 'html'; // Default format
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--url' && args[i + 1]) {
+      url = args[++i];
+    } else if (args[i] === '--client' && args[i + 1]) {
+      client = args[++i];
+    } else if (args[i] === '--output' && args[i + 1]) {
+      outputPath = args[++i];
+    } else if (args[i] === '--format' && args[i + 1]) {
+      format = args[++i];
+    }
+  }
 
   if (!url) {
-    console.error('\x1b[31mError: Debes proporcionar una URL');
-    console.log('\x1b[33mUso: node src/audit.js <url> [cliente]');
+    console.error('\x1b[31mError: Debes proporcionar una URL usando --url <url>\x1b[0m');
+    console.log('\x1b[33mUso: node src/audit.js --url <url> [--client <nombre>] [--output <ruta>] [--format <html|json>]\x1b[0m');
     process.exit(1);
   }
 
   const audit = new WebAudit(url, client);
   audit.runFullAudit()
-    .then(() => audit.generateReport())
-    .then(path => console.log(`\x1b[32m✓ Reporte disponible en: ${path}\x1b[0m`))
+    .then(async () => { // Make this async to use await for generateReport
+      const reportPath = await audit.generateReport(format, outputPath); // Pass format and outputPath
+      console.log(`\x1b[32m✓ Reporte disponible en: ${JSON.stringify(reportPath)}\x1b[0m`);
+    })
     .catch(err => {
       console.error('\x1b[31mError durante la auditoría:\x1b[0m', err);
       process.exit(1);

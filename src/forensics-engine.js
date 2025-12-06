@@ -52,32 +52,71 @@ export class ForensicsEngine {
       return issues;
     }
 
-    // Check for render-blocking resources
-    const renderBlockingCSS = html.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/g) || [];
-    const renderBlockingJS = html.match(/<script[^>]*src=[^>]*><\/script>/g) || [];
+    // Get render-blocking resources from Lighthouse audit data
+    const renderBlockingAudit = lighthouseResults?.audits?.['render-blocking-resources'];
+    const renderBlockingItems = renderBlockingAudit?.details?.items || [];
 
-    if (renderBlockingCSS.length > 3) {
-      issues.high.push({
-        type: 'render-blocking-css',
-        severity: 'high',
-        title: 'Múltiples CSS bloqueantes de renderizado',
-        description: `${renderBlockingCSS.length} archivos CSS bloquean el renderizado inicial`,
-        impact: 'Aumenta significativamente el tiempo de renderizado inicial',
-        evidence: `${renderBlockingCSS.length} CSS files in <head>`,
-        solution: 'Usar media queries, preload, o inline critical CSS'
-      });
-    }
+    // Use Lighthouse data if available, otherwise fall back to HTML parsing
+    if (renderBlockingItems.length > 0) {
+      // Analyze render-blocking resources from Lighthouse audit
+      const cssResources = renderBlockingItems.filter(item =>
+        item.url.includes('.css') || item.url.includes('stylesheet')
+      );
+      const jsResources = renderBlockingItems.filter(item =>
+        item.url.includes('.js') || item.url.includes('javascript')
+      );
 
-    if (renderBlockingJS.length > 2) {
-      issues.critical.push({
-        type: 'render-blocking-js',
-        severity: 'critical',
-        title: 'JavaScript bloqueante crítico',
-        description: `${renderBlockingJS.length} archivos JS bloquean el parsing del HTML`,
-        impact: 'Bloquea completamente el renderizado hasta que se ejecute el JS',
-        evidence: `${renderBlockingJS.length} blocking script tags`,
-        solution: 'Usar async/defer, code splitting, o mover scripts al final'
-      });
+      if (cssResources.length > 2) {
+        issues.high.push({
+          type: 'render-blocking-css',
+          severity: 'high',
+          title: 'CSS bloqueante de renderizado',
+          description: `${cssResources.length} recursos CSS bloquean el renderizado inicial`,
+          impact: 'Aumenta tiempo de First Paint y Largest Contentful Paint',
+          evidence: cssResources.map(r => r.url).join(', '),
+          solution: 'Usar media queries, preload, o inline critical CSS'
+        });
+      }
+
+      if (jsResources.length > 1) {
+        issues.critical.push({
+          type: 'render-blocking-js',
+          severity: 'critical',
+          title: 'JavaScript bloqueante crítico',
+          description: `${jsResources.length} recursos JS bloquean el parsing del HTML`,
+          impact: 'Bloquea completamente el renderizado hasta que se ejecute el JS',
+          evidence: jsResources.map(r => r.url).join(', '),
+          solution: 'Usar async/defer, code splitting, o mover scripts al final'
+        });
+      }
+    } else {
+      // Fallback to HTML parsing if no Lighthouse audit data
+      const renderBlockingCSS = html.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/g) || [];
+      const renderBlockingJS = html.match(/<script[^>]*src=[^>]*><\/script>/g) || [];
+
+      if (renderBlockingCSS.length > 3) {
+        issues.high.push({
+          type: 'render-blocking-css',
+          severity: 'high',
+          title: 'Múltiples CSS bloqueantes de renderizado',
+          description: `${renderBlockingCSS.length} archivos CSS bloquean el renderizado inicial`,
+          impact: 'Aumenta significativamente el tiempo de renderizado inicial',
+          evidence: `${renderBlockingCSS.length} CSS files in <head>`,
+          solution: 'Usar media queries, preload, o inline critical CSS'
+        });
+      }
+
+      if (renderBlockingJS.length > 2) {
+        issues.critical.push({
+          type: 'render-blocking-js',
+          severity: 'critical',
+          title: 'JavaScript bloqueante crítico',
+          description: `${renderBlockingJS.length} archivos JS bloquean el parsing del HTML`,
+          impact: 'Bloquea completamente el renderizado hasta que se ejecute el JS',
+          evidence: `${renderBlockingJS.length} blocking script tags`,
+          solution: 'Usar async/defer, code splitting, o mover scripts al final'
+        });
+      }
     }
 
     // Check for excessive DOM size

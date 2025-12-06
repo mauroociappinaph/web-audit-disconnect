@@ -8,9 +8,14 @@ export class TechnologyDetector {
             /wp-includes/i,
             /wp-admin/i,
             /wp-json/i,
-            /generator.*wordpress/i
+            /generator.*wordpress/i,
+            /wp-emoji/i,
+            /wp-embed/i,
+            /admin-ajax\.php/i,
+            /xmlrpc\.php/i,
+            /wp-login/i
           ],
-          headers: ['x-powered-by: wordpress'],
+          headers: ['x-powered-by: wordpress', 'link:.*wp-json'],
           confidence: 0
         },
         wix: {
@@ -19,18 +24,22 @@ export class TechnologyDetector {
             /wix-static/i,
             /wix-image/i,
             /wix-viewer/i,
-            /static\.wixstatic\.com/i
+            /static\.wixstatic\.com/i,
+            /wix\.com/i,
+            /data-site-cache/i
           ],
-          headers: ['x-wix-request-id'],
+          headers: ['x-wix-request-id', 'x-wix-published-version'],
           confidence: 0
         },
         squarespace: {
           patterns: [
             /squarespace/i,
             /static\.squarespace\.com/i,
-            /squarespace-parsed-data/i
+            /squarespace-parsed-data/i,
+            /squarespace-gdpr/i,
+            /squarespace\.com/i
           ],
-          headers: [],
+          headers: ['server: squarespace'],
           confidence: 0
         },
         shopify: {
@@ -38,18 +47,62 @@ export class TechnologyDetector {
             /shopify/i,
             /cdn\.shopify\.com/i,
             /myshopify\.com/i,
-            /shopify-app/i
+            /shopify-app/i,
+            /shopify-theme/i,
+            /shopify-section/i
           ],
-          headers: ['x-shopify-stage'],
+          headers: ['x-shopify-stage', 'x-shopify-shopid'],
           confidence: 0
         },
         webflow: {
           patterns: [
             /webflow/i,
             /uploads\.webflow\.com/i,
-            /fs-.*\.webflow\.com/i
+            /fs-.*\.webflow\.com/i,
+            /webflow\.com/i,
+            /webflow-data/i
           ],
-          headers: [],
+          headers: ['x-webflow-hostname'],
+          confidence: 0
+        },
+        prestashop: {
+          patterns: [
+            /prestashop/i,
+            /presta/i,
+            /modules\/.*\.js/i,
+            /themes\/.*\.css/i
+          ],
+          headers: ['powered-by: prestashop'],
+          confidence: 0
+        },
+        magento: {
+          patterns: [
+            /magento/i,
+            /var\/cache/i,
+            /mage\/cookie/i,
+            /form_key/i
+          ],
+          headers: ['x-magento-cache-debug'],
+          confidence: 0
+        },
+        drupal: {
+          patterns: [
+            /drupal/i,
+            /sites\/default/i,
+            /node\//i,
+            /drupal\.js/i
+          ],
+          headers: ['x-drupal-cache', 'x-generator: drupal'],
+          confidence: 0
+        },
+        joomla: {
+          patterns: [
+            /joomla/i,
+            /administrator/i,
+            /components\/.*\.js/i,
+            /modules\/.*\.js/i
+          ],
+          headers: ['x-powered-by: joomla'],
           confidence: 0
         }
       },
@@ -60,7 +113,9 @@ export class TechnologyDetector {
             /react-dom/i,
             /_next/i,
             /data-react/i,
-            /data-reactroot/i
+            /data-reactroot/i,
+            /react\.js/i,
+            /react\.min\.js/i
           ],
           confidence: 0
         },
@@ -69,7 +124,9 @@ export class TechnologyDetector {
             /vue/i,
             /vue-router/i,
             /nuxt/i,
-            /v-\w+/i
+            /v-\w+/i,
+            /vue\.js/i,
+            /vue\.min\.js/i
           ],
           confidence: 0
         },
@@ -78,7 +135,9 @@ export class TechnologyDetector {
             /angular/i,
             /ng-app/i,
             /ng-controller/i,
-            /ng-\w+/i
+            /ng-\w+/i,
+            /angular\.js/i,
+            /angular\.min\.js/i
           ],
           confidence: 0
         },
@@ -86,7 +145,8 @@ export class TechnologyDetector {
           patterns: [
             /_next/i,
             /next\/build/i,
-            /next\/router/i
+            /next\/router/i,
+            /next\.js/i
           ],
           confidence: 0
         },
@@ -94,7 +154,32 @@ export class TechnologyDetector {
           patterns: [
             /nuxt/i,
             /__nuxt/i,
-            /nuxt-link/i
+            /nuxt-link/i,
+            /nuxt\.js/i
+          ],
+          confidence: 0
+        },
+        svelte: {
+          patterns: [
+            /svelte/i,
+            /sveltekit/i,
+            /svelte\.js/i
+          ],
+          confidence: 0
+        },
+        gatsby: {
+          patterns: [
+            /gatsby/i,
+            /__gatsby/i,
+            /gatsby\.js/i
+          ],
+          confidence: 0
+        },
+        astro: {
+          patterns: [
+            /astro/i,
+            /astro\.js/i,
+            /astro-island/i
           ],
           confidence: 0
         }
@@ -111,18 +196,65 @@ export class TechnologyDetector {
           confidence: 0
         },
         cloudflare: {
-          patterns: [],
+          patterns: [/cloudflare/i],
           headers: ['cf-ray', 'server: cloudflare'],
           confidence: 0
         },
         aws: {
-          patterns: [/aws/i],
+          patterns: [/aws/i, /amazon/i],
           headers: ['x-amz-cf-id', 'server: amazon'],
           confidence: 0
         },
         google: {
           patterns: [/google/i],
           headers: ['server: gse', 'x-google-cache-control'],
+          confidence: 0
+        },
+        heroku: {
+          patterns: [/heroku/i],
+          headers: ['server: heroku', 'via: 1.1 vegur'],
+          confidence: 0
+        },
+        digitalocean: {
+          patterns: [/digitalocean/i],
+          headers: ['server: nginx', 'x-powered-by: phusion passenger'],
+          confidence: 0
+        },
+        azure: {
+          patterns: [/azure/i],
+          headers: ['server: microsoft-iis', 'x-azure-ref'],
+          confidence: 0
+        },
+        github: {
+          patterns: [/github\.io/i],
+          headers: ['server: github.com'],
+          confidence: 0
+        }
+      },
+      cdn: {
+        cloudflare: {
+          patterns: [/cdnjs\.cloudflare\.com/i],
+          headers: ['cf-ray'],
+          confidence: 0
+        },
+        jsdelivr: {
+          patterns: [/cdn\.jsdelivr\.net/i],
+          headers: [],
+          confidence: 0
+        },
+        unpkg: {
+          patterns: [/unpkg\.com/i],
+          headers: [],
+          confidence: 0
+        },
+        google: {
+          patterns: [/ajax\.googleapis\.com/i, /fonts\.googleapis\.com/i],
+          headers: [],
+          confidence: 0
+        },
+        fastly: {
+          patterns: [],
+          headers: ['x-served-by: fastly'],
           confidence: 0
         }
       }
@@ -146,6 +278,9 @@ export class TechnologyDetector {
 
     // Analyze headers
     this.analyzeHeaders(headers);
+
+    // Detect JavaScript libraries from script tags
+    results.libraries = this.detectLibraries(html);
 
     // Determine results
     results.cms = this.getHighestConfidence('cms');
@@ -220,6 +355,111 @@ export class TechnologyDetector {
     });
 
     return highest.confidence > 20 ? highest.tech : null; // Minimum threshold
+  }
+
+  detectLibraries(html) {
+    const libraries = [];
+
+    // Common JavaScript libraries and their CDN patterns
+    const libraryPatterns = {
+      'jQuery': [
+        /jquery[\.\-][0-9]/i,
+        /code\.jquery\.com/i,
+        /ajax\.googleapis\.com\/ajax\/libs\/jquery/i
+      ],
+      'Bootstrap': [
+        /bootstrap[\.\-][0-9]/i,
+        /stackpath\.bootstrapcdn\.com/i,
+        /cdn\.jsdelivr\.net\/npm\/bootstrap/i,
+        /maxcdn\.bootstrapcdn\.com/i
+      ],
+      'Font Awesome': [
+        /font-awesome/i,
+        /fontawesome/i,
+        /use\.fontawesome\.com/i,
+        /kit\.fontawesome\.com/i
+      ],
+      'Google Fonts': [
+        /fonts\.googleapis\.com/i,
+        /fonts\.gstatic\.com/i
+      ],
+      'Google Analytics': [
+        /googletagmanager\.com/i,
+        /google-analytics\.com/i,
+        /gtag/i,
+        /ga\(/i
+      ],
+      'Facebook Pixel': [
+        /connect\.facebook\.net/i,
+        /facebook\.com\/tr/i
+      ],
+      'Lodash': [
+        /lodash/i,
+        /cdn\.jsdelivr\.net\/npm\/lodash/i
+      ],
+      'Axios': [
+        /axios/i,
+        /cdn\.jsdelivr\.net\/npm\/axios/i
+      ],
+      'Moment.js': [
+        /moment/i,
+        /cdn\.jsdelivr\.net\/npm\/moment/i
+      ],
+      'Chart.js': [
+        /chart\.js/i,
+        /cdn\.jsdelivr\.net\/npm\/chart\.js/i
+      ],
+      'Swiper': [
+        /swiper/i,
+        /cdn\.jsdelivr\.net\/npm\/swiper/i
+      ],
+      'AOS (Animate On Scroll)': [
+        /aos/i,
+        /cdn\.jsdelivr\.net\/npm\/aos/i
+      ]
+    };
+
+    // Check each library pattern
+    Object.keys(libraryPatterns).forEach(libraryName => {
+      const patterns = libraryPatterns[libraryName];
+      let detected = false;
+      let version = 'Desconocida';
+      let source = 'Desconocida';
+
+      for (const pattern of patterns) {
+        if (pattern.test(html)) {
+          detected = true;
+
+          // Try to extract version from URL
+          const urlMatch = html.match(new RegExp(`https?://[^"']*${libraryName.toLowerCase().replace(/[\.\-\s]/g, '[\\.-\\s]*')}[^"']*`, 'i'));
+          if (urlMatch) {
+            const versionMatch = urlMatch[0].match(/(\d+(?:\.\d+)+)/);
+            if (versionMatch) {
+              version = versionMatch[1];
+            }
+
+            // Determine source
+            if (urlMatch[0].includes('jsdelivr')) source = 'jsDelivr';
+            else if (urlMatch[0].includes('googleapis')) source = 'Google CDN';
+            else if (urlMatch[0].includes('stackpath')) source = 'BootstrapCDN';
+            else if (urlMatch[0].includes('fontawesome')) source = 'Font Awesome';
+            else if (urlMatch[0].includes('jquery.com')) source = 'jQuery CDN';
+            else source = 'CDN Externo';
+          }
+          break;
+        }
+      }
+
+      if (detected) {
+        libraries.push({
+          name: libraryName,
+          version: version,
+          source: source
+        });
+      }
+    });
+
+    return libraries;
   }
 
   getTechnologyRecommendations(technologies) {

@@ -4,7 +4,7 @@ export class PageSpeedInsightsService {
   constructor(apiKey = null) {
     this.apiKey = apiKey || process.env.PSI_API_KEY;
     this.baseUrl = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
-    this.useMockData = !this.apiKey || process.env.NODE_ENV === 'development';
+    this.useMockData = !this.apiKey;
   }
 
   async runPSI(url, strategy = 'mobile', options = {}) {
@@ -137,6 +137,12 @@ export class PageSpeedInsightsService {
           numericValue: isMobile ? 120 : 80,
           title: 'First Input Delay'
         },
+        inp: {
+          score: isMobile ? 0.7 : 0.8,
+          displayValue: isMobile ? '180 ms' : '120 ms',
+          numericValue: isMobile ? 180 : 120,
+          title: 'Interaction to Next Paint'
+        },
         cls: {
           score: isMobile ? 0.4 : 0.8,
           displayValue: isMobile ? '0.648' : '0.123',
@@ -167,7 +173,68 @@ export class PageSpeedInsightsService {
       },
       lighthouseVersion: '11.0.0',
       screenshot: this.getMockScreenshot(strategy),
-      audits: {}
+      audits: {
+        'render-blocking-resources': {
+          score: isMobile ? 0.3 : 0.6,
+          title: 'Eliminate render-blocking resources',
+          description: 'Resources are blocking the first paint of your page. Consider delivering critical JS/CSS inline and deferring all non-critical JS/styles.',
+          displayValue: isMobile ? 'Potential savings of 2.1 s' : 'Potential savings of 1.2 s',
+          details: {
+            items: [
+              {
+                url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+                totalBytes: 2100,
+                wastedMs: 300
+              },
+              {
+                url: 'https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js',
+                totalBytes: 30720,
+                wastedMs: 1500
+              },
+              {
+                url: 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css',
+                totalBytes: 205000,
+                wastedMs: 800
+              },
+              {
+                url: '/css/custom-styles.css',
+                totalBytes: 15000,
+                wastedMs: 200
+              }
+            ]
+          }
+        },
+        'unused-javascript': {
+          score: isMobile ? 0.4 : 0.7,
+          title: 'Remove unused JavaScript',
+          description: 'Remove unused JavaScript to reduce bytes consumed by network activity.',
+          displayValue: isMobile ? 'Potential savings of 45 KiB' : 'Potential savings of 32 KiB',
+          details: {
+            items: [
+              {
+                url: 'https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js',
+                totalBytes: 30720,
+                wastedBytes: 15360
+              }
+            ]
+          }
+        },
+        'unused-css-rules': {
+          score: isMobile ? 0.6 : 0.8,
+          title: 'Remove unused CSS',
+          description: 'Remove dead rules from stylesheets and defer the loading of CSS not used for above-the-fold content to reduce unnecessary bytes consumed by network activity.',
+          displayValue: isMobile ? 'Potential savings of 12 KiB' : 'Potential savings of 8 KiB',
+          details: {
+            items: [
+              {
+                url: 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css',
+                totalBytes: 205000,
+                wastedBytes: 12288
+              }
+            ]
+          }
+        }
+      }
     };
 
     console.log(`✅ Datos simulados generados para ${strategy} - Score: ${finalScore}/100`);
@@ -238,6 +305,12 @@ export class PageSpeedInsightsService {
           numericValue: 'n/d',
           title: 'First Input Delay'
         },
+        inp: {
+          score: 'n/d',
+          displayValue: 'n/d',
+          numericValue: 'n/d',
+          title: 'Interaction to Next Paint'
+        },
         cls: {
           score: 'n/d',
           displayValue: 'n/d',
@@ -268,7 +341,51 @@ export class PageSpeedInsightsService {
       },
       lighthouseVersion: 'n/d',
       screenshot: null,
-      audits: {},
+      audits: {
+        'render-blocking-resources': {
+          score: 'n/d',
+          title: 'Eliminate render-blocking resources',
+          description: 'Resources are blocking the first paint of your page. Consider delivering critical JS/CSS inline and deferring all non-critical JS/styles.',
+          displayValue: 'n/d',
+          details: {
+            items: [
+              {
+                url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+                totalBytes: 2100,
+                wastedMs: 300
+              },
+              {
+                url: 'https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js',
+                totalBytes: 30720,
+                wastedMs: 1500
+              },
+              {
+                url: 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css',
+                totalBytes: 205000,
+                wastedMs: 800
+              }
+            ]
+          }
+        },
+        'unused-javascript': {
+          score: 'n/d',
+          title: 'Remove unused JavaScript',
+          description: 'Remove unused JavaScript to reduce bytes consumed by network activity.',
+          displayValue: 'n/d',
+          details: {
+            items: []
+          }
+        },
+        'unused-css-rules': {
+          score: 'n/d',
+          title: 'Remove unused CSS',
+          description: 'Remove dead rules from stylesheets and defer the loading of CSS not used for above-the-fold content.',
+          displayValue: 'n/d',
+          details: {
+            items: []
+          }
+        }
+      },
       dataAvailable: false,
       reason: 'API key no configurada - obtener en https://developers.google.com/speed/docs/insights/v5/get-started'
     };
@@ -318,6 +435,7 @@ export class PageSpeedInsightsService {
       dcl: this.extractAuditMetric(audits['dom-content-loaded']),
       onload: this.extractAuditMetric(audits['dom-content-loaded']),
       fid: this.extractAuditMetric(audits['max-potential-fid']),
+      inp: this.extractAuditMetric(audits['interaction-to-next-paint']),
       cls: this.extractAuditMetric(audits['cumulative-layout-shift']),
       tbt: this.extractAuditMetric(audits['total-blocking-time']),
       si: this.extractAuditMetric(audits['speed-index']),
@@ -418,7 +536,7 @@ export class PageSpeedInsightsService {
   }
 
   generateComparison(mobileResults, desktopResults) {
-    const metrics = ['score', 'ttfb', 'fcp', 'lcp', 'dcl', 'fid', 'cls', 'tbt', 'si', 'tti'];
+    const metrics = ['score', 'ttfb', 'fcp', 'lcp', 'dcl', 'fid', 'inp', 'cls', 'tbt', 'si', 'tti'];
 
     const comparison = {};
 
