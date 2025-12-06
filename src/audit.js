@@ -5,6 +5,7 @@ import { LighthouseService } from './lighthouse-service.js';
 import { TechnologyDetector } from './technology-detector.js';
 import { ForensicsEngine } from './forensics-engine.js';
 import { ROICalculator } from './roi-calculator.js';
+import { EngineeringPlanner } from './engineering-planner.js';
 import { ReportGenerator } from './report-generator.js';
 
 const logger = {
@@ -195,9 +196,17 @@ export class WebAudit {
     const technologyDetector = new TechnologyDetector();
     const forensicsEngine = new ForensicsEngine();
     const roiCalculator = new ROICalculator();
+    const engineeringPlanner = new EngineeringPlanner();
 
     // Get Lighthouse results first (needed for forensics and ROI)
     const lighthouseResults = await lighthouseService.runLighthouse(this.url);
+
+    // Prepare intermediate results for planning
+    const intermediateResults = {
+      lighthouse: lighthouseResults,
+      technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
+      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults)
+    };
 
     this.results = {
       client: this.clientName,
@@ -209,13 +218,10 @@ export class WebAudit {
       performance: await this.checkPerformance(),
       seo: await this.checkSEO(),
       lighthouse: lighthouseResults,
-      technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
-      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults),
-      roi: roiCalculator.calculateROI({
-        lighthouse: lighthouseResults,
-        technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
-        forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults)
-      }),
+      technologies: intermediateResults.technologies,
+      forensics: intermediateResults.forensics,
+      roi: roiCalculator.calculateROI(intermediateResults),
+      engineeringPlan: engineeringPlanner.createImplementationPlan(intermediateResults),
       pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
     };
 

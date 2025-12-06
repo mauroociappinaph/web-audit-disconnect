@@ -506,6 +506,57 @@ export class ReportGenerator {
     </div>
     ` : ''}
 
+    ${this.results.engineeringPlan ? `
+    <div class="card">
+      <h2>📋 Plan de Implementación de Ingeniería</h2>
+      <div class="metric-row">
+        <span class="metric-label">Prioridad General:</span>
+        <span class="status-badge" style="background-color: ${this.results.engineeringPlan.summary.priority === 'CRITICAL' ? '#ef4444' : this.results.engineeringPlan.summary.priority === 'HIGH' ? '#f59e0b' : '#10b981'}">
+          ${this.results.engineeringPlan.summary.priority}
+        </span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Timeline Estimado:</span>
+        <span class="metric-value">${this.results.engineeringPlan.timeline.totalWeeks} semanas</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Presupuesto Estimado:</span>
+        <span class="metric-value">$${this.results.engineeringPlan.budget.total.toLocaleString()}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Problemas Críticos:</span>
+        <span class="metric-value">${this.results.engineeringPlan.summary.criticalIssues}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Problemas Altos:</span>
+        <span class="metric-value">${this.results.engineeringPlan.summary.highIssues}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📅 Fases de Implementación</h2>
+      ${Object.entries(this.results.engineeringPlan.phases).map(([phaseKey, phase]) => `
+        ${phase.issues && phase.issues.length > 0 ? `
+          <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h3 style="color: #1f2937; margin-bottom: 10px;">${phase.name}</h3>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; font-size: 0.9em;">
+              <span><strong>Duración:</strong> ${phase.duration}</span>
+              <span><strong>Issues:</strong> ${phase.issues.length}</span>
+            </div>
+            <div style="margin-top: 10px;">
+              ${phase.issues.slice(0, 3).map(issue => `
+                <div style="margin: 5px 0; padding: 8px; background: #f9fafb; border-radius: 4px; font-size: 0.85em;">
+                  <strong>${issue.title}</strong> - ${issue.description}
+                </div>
+              `).join('')}
+              ${phase.issues.length > 3 ? `<div style="font-size: 0.8em; color: #6b7280;">...y ${phase.issues.length - 3} issues más</div>` : ''}
+            </div>
+          </div>
+        ` : ''}
+      `).join('')}
+    </div>
+    ` : ''}
+
     ${(() => {
       const technologyDetector = new TechnologyDetector();
       const techRecommendations = this.results.technologies ?

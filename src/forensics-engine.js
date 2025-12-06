@@ -47,6 +47,11 @@ export class ForensicsEngine {
   analyzeRenderingBottlenecks(html, lighthouseResults) {
     const issues = { critical: [], high: [], medium: [] };
 
+    // Check for valid HTML input
+    if (!html || typeof html !== 'string') {
+      return issues;
+    }
+
     // Check for render-blocking resources
     const renderBlockingCSS = html.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/g) || [];
     const renderBlockingJS = html.match(/<script[^>]*src=[^>]*><\/script>/g) || [];
@@ -144,6 +149,11 @@ export class ForensicsEngine {
   analyzeJavaScriptBottlenecks(html, lighthouseResults = {}) {
     const issues = { high: [], medium: [] };
 
+    // Check for valid HTML input
+    if (!html || typeof html !== 'string') {
+      return issues;
+    }
+
     // Check for large JavaScript bundles
     const jsFiles = html.match(/<script[^>]*src=["'][^"']*\.js["'][^>]*>/g) || [];
     if (jsFiles.length > 10) {
@@ -176,6 +186,11 @@ export class ForensicsEngine {
 
   analyzeResourceBottlenecks(html, networkRequests = []) {
     const issues = { medium: [], low: [] };
+
+    // Check for valid HTML input
+    if (!html || typeof html !== 'string') {
+      return issues;
+    }
 
     // Check for unused CSS
     const cssFiles = html.match(/<link[^>]*rel=["']stylesheet["'][^>]*href=["'][^"']*\.css["'][^>]*>/g) || [];
