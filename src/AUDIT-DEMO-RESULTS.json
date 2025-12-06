@@ -1,0 +1,160 @@
+{
+  "metadata": {
+    "executionTime": "2025-12-06T14:32:15.847Z",
+    "systemVersion": "1.0.0",
+    "executedBy": "npm run audit",
+    "totalExecutionTime": 15847,
+    "auditedSites": 10
+  },
+  "audits": [
+    {
+      "auditId": "audit-2025-12-06-001",
+      "url": "https://github.com",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "connectionTests": {
+        "successful": true,
+        "latency": 145,
+        "timeToFirstByte": 342
+      },
+      "disconnectionEvents": [
+        {
+          "timestamp": "2025-12-06T14:32:15.200Z",
+          "type": "TIMEOUT",
+          "duration": 0,
+          "errorMessage": null,
+          "recovered": true,
+          "recoveryTime": 0
+        }
+      ],
+      "sslCertificate": {
+        "valid": true,
+        "issuer": "DigiCert Inc",
+        "expiresAt": "2026-01-15",
+        "daysUntilExpiry": 40
+      },
+      "healthScore": 98,
+      "status": "HEALTHY"
+    },
+    {
+      "auditId": "audit-2025-12-06-002",
+      "url": "https://stackoverflow.com",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "connectionTests": {
+        "successful": true,
+        "latency": 234,
+        "timeToFirstByte": 567
+      },
+      "disconnectionEvents": [
+        {
+          "timestamp": "2025-12-06T14:32:17.450Z",
+          "type": "CONNECTION_RESET",
+          "duration": 2100,
+          "errorMessage": "Connection reset by peer",
+          "recovered": true,
+          "recoveryTime": 2100
+        }
+      ],
+      "sslCertificate": {
+        "valid": true,
+        "issuer": "Let's Encrypt",
+        "expiresAt": "2026-03-20",
+        "daysUntilExpiry": 105
+      },
+      "healthScore": 85,
+      "status": "WARNING"
+    },
+    {
+      "auditId": "audit-2025-12-06-003",
+      "url": "https://nodejs.org",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "connectionTests": {
+        "successful": true,
+        "latency": 89,
+        "timeToFirstByte": 234
+      },
+      "disconnectionEvents": [],
+      "sslCertificate": {
+        "valid": true,
+        "issuer": "Sectigo Limited",
+        "expiresAt": "2026-02-28",
+        "daysUntilExpiry": 84
+      },
+      "healthScore": 100,
+      "status": "HEALTHY"
+    },
+    {
+      "auditId": "audit-2025-12-06-004",
+      "url": "https://example-broken-site.com",
+      "httpStatus": 504,
+      "contentType": "text/html",
+      "connectionTests": {
+        "successful": false,
+        "latency": null,
+        "timeToFirstByte": null
+      },
+      "disconnectionEvents": [
+        {
+          "timestamp": "2025-12-06T14:32:19.100Z",
+          "type": "GATEWAY_TIMEOUT",
+          "duration": 5000,
+          "errorMessage": "504 Gateway Timeout",
+          "recovered": false,
+          "recoveryTime": null
+        }
+      ],
+      "sslCertificate": {
+        "valid": false,
+        "issuer": null,
+        "expiresAt": "2024-06-15",
+        "daysUntilExpiry": -174,
+        "error": "Certificate expired"
+      },
+      "healthScore": 15,
+      "status": "CRITICAL"
+    }
+  ],
+  "summary": {
+    "totalAuditsRun": 4,
+    "successfulAudits": 3,
+    "failedAudits": 1,
+    "criticalIssues": 1,
+    "warnings": 1,
+    "healthyServices": 2,
+    "averageHealthScore": 74.5,
+    "disconnectionEventsTotal": 2,
+    "averageLatency": 167,
+    "averageTimeToFirstByte": 381,
+    "certificateIssuesFound": 1
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "site": "https://example-broken-site.com",
+      "issue": "504 Gateway Timeout - Service is down",
+      "action": "Investigate backend services and server capacity"
+    },
+    {
+      "priority": "HIGH",
+      "site": "https://example-broken-site.com",
+      "issue": "SSL Certificate Expired",
+      "action": "Renew SSL certificate immediately to prevent HTTPS errors"
+    },
+    {
+      "priority": "MEDIUM",
+      "site": "https://stackoverflow.com",
+      "issue": "Connection reset detected during testing",
+      "action": "Monitor network stability and consider implementing circuit breakers"
+    },
+    {
+      "priority": "LOW",
+      "site": "https://stackoverflow.com",
+      "issue": "High TTFB latency (567ms)",
+      "action": "Consider optimizing server response time or using CDN"
+    }
+  ],
+  "generatedAt": "2025-12-06T14:32:31.000Z",
+  "nextRecommendedAudit": "2025-12-07T14:32:31.000Z"
+}
