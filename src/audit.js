@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { writeFileSync, mkdirSync } from 'fs';
 import { LighthouseService } from './lighthouse-service.js';
 import { TechnologyDetector } from './technology-detector.js';
+import { ForensicsEngine } from './forensics-engine.js';
 import { ReportGenerator } from './report-generator.js';
 
 const logger = {
@@ -191,6 +192,10 @@ export class WebAudit {
     // Initialize services
     const lighthouseService = new LighthouseService();
     const technologyDetector = new TechnologyDetector();
+    const forensicsEngine = new ForensicsEngine();
+
+    // Get Lighthouse results first (needed for forensics)
+    const lighthouseResults = await lighthouseService.runLighthouse(this.url);
 
     this.results = {
       client: this.clientName,
@@ -201,8 +206,9 @@ export class WebAudit {
       uptime: await this.checkUptime(),
       performance: await this.checkPerformance(),
       seo: await this.checkSEO(),
-      lighthouse: await lighthouseService.runLighthouse(this.url),
+      lighthouse: lighthouseResults,
       technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
+      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults),
       pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
     };
 

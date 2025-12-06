@@ -449,6 +449,34 @@ export class ReportGenerator {
     </div>
     ` : ''}
 
+    ${this.results.forensics ? `
+    <div class="card">
+      <h2>🔍 Análisis Forense de Rendimiento</h2>
+      <div class="metric-row">
+        <span class="metric-label">Health Score:</span>
+        <span class="status-badge" style="background-color: ${this.results.forensics.summary.healthScore >= 80 ? '#10b981' : this.results.forensics.summary.healthScore >= 60 ? '#f59e0b' : '#ef4444'}">
+          ${this.results.forensics.summary.healthScore}/100
+        </span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Estado:</span>
+        <span class="metric-value">${this.results.forensics.summary.status.charAt(0).toUpperCase() + this.results.forensics.summary.status.slice(1)}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Problemas Críticos:</span>
+        <span class="metric-value">${this.results.forensics.summary.criticalIssues}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Problemas Altos:</span>
+        <span class="metric-value">${this.results.forensics.summary.highIssues}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Total Problemas:</span>
+        <span class="metric-value">${this.results.forensics.summary.totalIssues}</span>
+      </div>
+    </div>
+    ` : ''}
+
     ${(() => {
       const technologyDetector = new TechnologyDetector();
       const techRecommendations = this.results.technologies ?
