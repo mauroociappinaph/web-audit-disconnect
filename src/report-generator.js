@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as cheerio from 'cheerio';
 import { TechnologyDetector } from './technology-detector.js';
+import { ROICalculator } from './roi-calculator.js';
 
 export class ReportGenerator {
   constructor(auditResults) {
@@ -473,6 +474,34 @@ export class ReportGenerator {
       <div class="metric-row">
         <span class="metric-label">Total Problemas:</span>
         <span class="metric-value">${this.results.forensics.summary.totalIssues}</span>
+      </div>
+    </div>
+    ` : ''}
+
+    ${this.results.roi ? `
+    <div class="card">
+      <h2>💰 Análisis de ROI y Business Intelligence</h2>
+      <div class="metric-row">
+        <span class="metric-label">Aumento Anual Estimado:</span>
+        <span class="metric-value" style="color: #10b981; font-weight: bold;">$${this.results.roi.financials.annualRevenueIncrease.toLocaleString()}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Payback:</span>
+        <span class="status-badge" style="background-color: ${this.results.roi.payback.recommendation.includes('EXCELENTE') ? '#10b981' : this.results.roi.payback.recommendation.includes('BUENO') ? '#f59e0b' : '#ef4444'}">
+          ${this.results.roi.payback.months.low.toFixed(1)} meses
+        </span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Mejora en Conversión:</span>
+        <span class="metric-value">${(this.results.roi.conversionImpact.totalImpact * 100).toFixed(1)}%</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Confianza del Análisis:</span>
+        <span class="metric-value">${this.results.roi.confidence}%</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Recomendación Payback:</span>
+        <span class="metric-value" style="font-size: 0.9em;">${this.results.roi.payback.recommendation}</span>
       </div>
     </div>
     ` : ''}

@@ -4,6 +4,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { LighthouseService } from './lighthouse-service.js';
 import { TechnologyDetector } from './technology-detector.js';
 import { ForensicsEngine } from './forensics-engine.js';
+import { ROICalculator } from './roi-calculator.js';
 import { ReportGenerator } from './report-generator.js';
 
 const logger = {
@@ -193,8 +194,9 @@ export class WebAudit {
     const lighthouseService = new LighthouseService();
     const technologyDetector = new TechnologyDetector();
     const forensicsEngine = new ForensicsEngine();
+    const roiCalculator = new ROICalculator();
 
-    // Get Lighthouse results first (needed for forensics)
+    // Get Lighthouse results first (needed for forensics and ROI)
     const lighthouseResults = await lighthouseService.runLighthouse(this.url);
 
     this.results = {
@@ -209,6 +211,11 @@ export class WebAudit {
       lighthouse: lighthouseResults,
       technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
       forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults),
+      roi: roiCalculator.calculateROI({
+        lighthouse: lighthouseResults,
+        technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
+        forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults)
+      }),
       pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
     };
 
