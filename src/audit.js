@@ -1,12 +1,13 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { writeFileSync, mkdirSync } from 'fs';
-import { LighthouseService } from './lighthouse-service.js';
+import { PageSpeedInsightsService } from './pagespeed-insights-service.js';
 import { TechnologyDetector } from './technology-detector.js';
 import { ForensicsEngine } from './forensics-engine.js';
 import { ROICalculator } from './roi-calculator.js';
 import { EngineeringPlanner } from './engineering-planner.js';
 import { ReportGenerator } from './report-generator.js';
+import { MetricsHelper } from './utils/metrics-helper.js';
 
 const logger = {
   info: (msg) => console.log(`\x1b[36m[INFO]\x1b[0m ${new Date().toISOString()}: ${msg}`),
@@ -186,47 +187,67 @@ export class WebAudit {
 
   async runFullAudit() {
     logger.info(`========================================`);
-    logger.info(`Iniciando auditoría completa`);
+    logger.info(`Iniciando auditoría completa con PageSpeed Insights`);
     logger.info(`Cliente: ${this.clientName}`);
     logger.info(`URL: ${this.url}`);
     logger.info(`========================================`);
 
     // Initialize services
-    const lighthouseService = new LighthouseService();
+    const psiService = new PageSpeedInsightsService();
     const technologyDetector = new TechnologyDetector();
     const forensicsEngine = new ForensicsEngine();
     const roiCalculator = new ROICalculator();
     const engineeringPlanner = new EngineeringPlanner();
 
-    // Get Lighthouse results first (needed for forensics and ROI)
-    const lighthouseResults = await lighthouseService.runLighthouse(this.url);
+    // Get SSL and basic info first
+    const ssl = await this.checkSSL();
+    const links = await this.checkBrokenLinks();
 
-    // Prepare intermediate results for planning
+    // Get PageSpeed Insights results (mobile + desktop)
+    const psiResults = await psiService.runComprehensiveAudit(this.url);
+
+    // Prepare intermediate results for analysis
     const intermediateResults = {
-      lighthouse: lighthouseResults,
+      lighthouse: psiResults.mobile, // Use mobile as primary for analysis
       technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
-      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], lighthouseResults)
+      forensics: forensicsEngine.analyzeBottlenecks(this.pageHTML, [], psiResults.mobile)
     };
+
+    // Get additional metrics
+    const uptime = await this.checkUptime();
+    const performance = await this.checkPerformance();
+    const seo = await this.checkSEO();
+
+    // Calculate additional analysis
+    const scopeAnalysis = MetricsHelper.calculateScopeAnalysis({
+      links,
+      performance,
+      seo
+    });
+
+    const actionableRecommendations = MetricsHelper.generateActionableRecommendations(
+      psiResults,
+      psiResults.comparison
+    );
 
     this.results = {
       client: this.clientName,
       url: this.url,
       timestamp: new Date().toISOString(),
-      ssl: await this.checkSSL(),
-      links: await this.checkBrokenLinks(),
-      uptime: await this.checkUptime(),
-      performance: await this.checkPerformance(),
-      seo: await this.checkSEO(),
-      lighthouse: lighthouseResults,
+      ssl,
+      links,
+      uptime,
+      performance,
+      seo,
+      pagespeedInsights: psiResults, // New PSI results
       technologies: intermediateResults.technologies,
       forensics: intermediateResults.forensics,
       roi: roiCalculator.calculateROI(intermediateResults),
       engineeringPlan: engineeringPlanner.createImplementationPlan(intermediateResults),
+      scopeAnalysis, // New scope analysis
+      actionableRecommendations, // New actionable recommendations
       pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
     };
-
-    // Cleanup
-    await lighthouseService.cleanup();
 
     const duration = ((Date.now() - this.startTime) / 1000).toFixed(2);
     this.results.duration = `${duration}s`;

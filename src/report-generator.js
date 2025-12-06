@@ -3,6 +3,7 @@ import { join } from 'path';
 import * as cheerio from 'cheerio';
 import { TechnologyDetector } from './technology-detector.js';
 import { ROICalculator } from './roi-calculator.js';
+import { MetricsHelper } from './utils/metrics-helper.js';
 
 export class ReportGenerator {
   constructor(auditResults) {
@@ -153,17 +154,31 @@ export class ReportGenerator {
   }
 
   generateHTML() {
-    const statusColor = (status) => {
-      switch(status) {
-        case 'good': return '#10b981';
-        case 'warning': return '#f59e0b';
-        case 'error':
-        case 'bad': return '#ef4444';
-        case 'up': return '#10b981';
-        case 'down': return '#ef4444';
-        default: return '#6b7280';
-      }
+    // Sistema de semáforos consistente
+    const getSemaphor = (score, metric = null) => {
+      const semaphor = MetricsHelper.getSemaphorScore(score, metric);
+      return {
+        label: semaphor.label,
+        color: semaphor.color,
+        status: semaphor.status,
+        icon: semaphor.icon
+      };
     };
+
+    // Crear tabla comparativa móvil vs desktop
+    const comparisonTable = this.results.pagespeedInsights ?
+      MetricsHelper.createComparisonTable(
+        this.results.pagespeedInsights.mobile,
+        this.results.pagespeedInsights.desktop
+      ) : [];
+
+    // Información de alcance
+    const scopeInfo = this.results.scopeAnalysis ?
+      this.results.scopeAnalysis :
+      MetricsHelper.calculateScopeAnalysis(this.results);
+
+    // Recomendaciones accionables
+    const actionableRecs = this.results.actionableRecommendations || [];
 
     const html = `
 <!DOCTYPE html>
@@ -171,7 +186,7 @@ export class ReportGenerator {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audi toría Web - ${this.results.client}</title>
+  <title>Auditoría Web Completa - ${this.results.client} - PageSpeed Insights</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -179,419 +194,404 @@ export class ReportGenerator {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
       min-height: 100vh;
+      color: #1f2937;
     }
-    .container { max-width: 1200px; margin: 0 auto; }
+    .container { max-width: 1400px; margin: 0 auto; }
     .header {
       background: white;
       padding: 30px;
-      border-radius: 10px;
+      border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2);
       margin-bottom: 30px;
+      text-align: center;
     }
-    .header h1 { color: #1f2937; margin-bottom: 10px; font-size: 2em; }
-    .header-info { display: flex; gap: 20px; flex-wrap: wrap; color: #6b7280; font-size: 0.95em; }
-    .header-info p { display: flex; align-items: center; gap: 8px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .card {
+    .header h1 { color: #1f2937; margin-bottom: 10px; font-size: 2.5em; }
+    .header .subtitle { color: #6b7280; font-size: 1.2em; margin-bottom: 20px; }
+    .header-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      color: #6b7280;
+      font-size: 0.95em;
+    }
+    .header-info p { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    .overview-section {
       background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .overview-card {
+      background: #f8fafc;
       padding: 20px;
       border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      border-left: 5px solid #667eea;
+      border-left: 4px solid #667eea;
     }
-    .card h2 {
-      font-size: 1.1em;
-      margin-bottom: 15px;
+    .overview-card h3 { color: #1f2937; margin-bottom: 10px; font-size: 1.1em; }
+    .overview-metric { font-size: 2em; font-weight: bold; color: #667eea; margin-bottom: 5px; }
+    .overview-label { color: #6b7280; font-size: 0.9em; }
+
+    .section { margin-bottom: 40px; }
+    .section h2 {
+      color: white;
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .card h3 {
       color: #1f2937;
+      margin-bottom: 20px;
+      font-size: 1.3em;
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     .status-badge {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85em;
+      padding: 6px 16px;
+      border-radius: 25px;
+      font-size: 0.9em;
       font-weight: bold;
       color: white;
+      text-transform: uppercase;
     }
-    .metric-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .comparison-table th {
+      background: #667eea;
+      color: white;
+      padding: 15px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .comparison-table td {
+      padding: 15px;
       border-bottom: 1px solid #e5e7eb;
     }
-    .metric-row:last-child { border-bottom: none; }
-    .metric-label { color: #6b7280; font-weight: 500; }
-    .metric-value { color: #1f2937; font-weight: bold; }
-    .icon { font-size: 1.3em; }
-    .ssl-valid { color: #10b981; }
-    .ssl-error { color: #ef4444; }
-    .ssl-warning { color: #f59e0b; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; color: #374151; }
-    td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-    tr:hover { background: #f9fafb; }
-    .recommendations { margin-bottom: 30px; }
-    .recommendation-item {
+    .comparison-table tr:nth-child(even) { background: #f8fafc; }
+    .comparison-table tr:hover { background: #f0f4ff; }
+
+    .mobile-col { background: #e3f2fd; }
+    .desktop-col { background: #f3e5f5; }
+    .diff-col {
+      font-weight: bold;
+    }
+    .diff-mobile-better { color: #10b981; }
+    .diff-desktop-better { color: #f59e0b; }
+    .diff-similar { color: #6b7280; }
+
+    .screenshots-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .screenshot-card {
       background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .screenshot-card h4 {
       padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      border-left: 4px solid #6b7280;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background: #667eea;
+      color: white;
+      margin: 0;
+      font-size: 1.1em;
+    }
+    .screenshot-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .recommendations-grid {
+      display: grid;
+      gap: 20px;
+    }
+    .recommendation-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-left: 5px solid #6b7280;
     }
     .recommendation-critical { border-left-color: #ef4444; }
     .recommendation-high { border-left-color: #f59e0b; }
     .recommendation-medium { border-left-color: #3b82f6; }
     .recommendation-low { border-left-color: #10b981; }
+
     .recommendation-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 15px;
     }
-    .recommendation-priority {
-      font-size: 0.75em;
+    .recommendation-severity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9em;
       font-weight: bold;
-      padding: 2px 8px;
-      border-radius: 12px;
-      color: white;
     }
-    .priority-critical { background-color: #ef4444; }
-    .priority-high { background-color: #f59e0b; }
-    .priority-medium { background-color: #3b82f6; }
-    .priority-low { background-color: #10b981; }
-    .recommendation-issue { font-weight: bold; color: #1f2937; margin-bottom: 5px; }
-    .recommendation-action { color: #6b7280; font-size: 0.9em; }
-    .recommendation-category { font-size: 0.8em; color: #9ca3af; font-weight: 500; }
-    .footer { text-align: center; color: white; margin-top: 30px; font-size: 0.9em; }
+    .severity-critical { color: #ef4444; }
+    .severity-high { color: #f59e0b; }
+    .severity-medium { color: #3b82f6; }
+    .severity-low { color: #10b981; }
+
+    .recommendation-issue {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    .recommendation-impact {
+      color: #6b7280;
+      font-size: 0.95em;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    .recommendation-actions {
+      margin-bottom: 15px;
+    }
+    .recommendation-action {
+      background: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 5px 0;
+      font-size: 0.9em;
+      border-left: 3px solid #667eea;
+    }
+    .recommendation-outcomes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .outcome-item {
+      background: #f0f4ff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      text-align: center;
+    }
+    .outcome-label { font-weight: bold; color: #667eea; }
+    .outcome-value { color: #1f2937; }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 40px;
+      font-size: 0.9em;
+      padding: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 10px; }
+      .header { padding: 20px; }
+      .header h1 { font-size: 2em; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .screenshots-section { grid-template-columns: 1fr; }
+      .comparison-table { font-size: 0.8em; }
+      .comparison-table th,
+      .comparison-table td { padding: 8px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Header -->
     <div class="header">
-      <h1>🔍 Audi toría Web Completa</h1>
+      <h1>🔍 Auditoría Web Completa</h1>
+      <div class="subtitle">Basado en PageSpeed Insights Oficial</div>
       <div class="header-info">
         <p><strong>Cliente:</strong> ${this.results.client}</p>
         <p><strong>URL:</strong> ${this.results.url}</p>
-        <p><strong>Fecha:</strong> ${new Date(this.results.timestamp).toLocaleDateString()}</p>
+        <p><strong>Fecha:</strong> ${new Date(this.results.timestamp).toLocaleDateString('es-ES')}</p>
         <p><strong>Duración:</strong> ${this.results.duration || 'N/A'}</p>
+        <p><strong>Fuente:</strong> PageSpeed Insights API</p>
+        <p><strong>Alcance:</strong> ${scopeInfo.description}</p>
       </div>
     </div>
 
-    <div class="grid">
-      <!-- SSL/HTTPS -->
-      <div class="card">
-        <h2>🔐 SSL/HTTPS</h2>
-        <div class="metric-row">
-          <span class="metric-label">Estado:</span>
-          <span class="status-badge" style="background-color: ${statusColor(this.results.ssl?.status)}">
-            ${this.results.ssl?.protocol || 'N/A'}
-          </span>
+    <!-- Overview Section -->
+    ${this.results.pagespeedInsights ? `
+    <div class="overview-section">
+      <div class="overview-grid">
+        <div class="overview-card">
+          <h3>📊 Performance General</h3>
+          <div class="overview-metric">${this.results.pagespeedInsights.summary.averageScore}/100</div>
+          <div class="overview-label">${this.results.pagespeedInsights.summary.overallGrade}</div>
         </div>
-        <div class="metric-row">
-          <span class="metric-label">Certificado:</span>
-          <span class="metric-value">${this.results.ssl?.cert || 'N/A'}</span>
+        <div class="overview-card">
+          <h3>📱 Móvil</h3>
+          <div class="overview-metric">${this.results.pagespeedInsights.mobile.score}/100</div>
+          <div class="overview-label">${getSemaphor(this.results.pagespeedInsights.mobile.score).label}</div>
         </div>
-        <div class="metric-row">
-          <span class="metric-label">Status Code:</span>
-          <span class="metric-value">${this.results.ssl?.statusCode || 'Error'}</span>
+        <div class="overview-card">
+          <h3>🖥️ Desktop</h3>
+          <div class="overview-metric">${this.results.pagespeedInsights.desktop.score}/100</div>
+          <div class="overview-label">${getSemaphor(this.results.pagespeedInsights.desktop.score).label}</div>
         </div>
-      </div>
-
-      <!-- UPTIME -->
-      <div class="card">
-        <h2>✅ Uptime</h2>
-        <div class="metric-row">
-          <span class="metric-label">Estado:</span>
-          <span class="status-badge" style="background-color: ${statusColor(this.results.uptime?.status)}">
-            ${(this.results.uptime?.status || 'unknown').toUpperCase()}
-          </span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Response Time:</span>
-          <span class="metric-value">${this.results.uptime?.responseTime || 'N/A'}</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Status Code:</span>
-          <span class="metric-value">${this.results.uptime?.statusCode || 'N/A'}</span>
+        <div class="overview-card">
+          <h3>🎯 Core Web Vitals</h3>
+          <div class="overview-metric">${Math.round(MetricsHelper.generateMetricSummary(this.results.pagespeedInsights).coreWebVitalsScore)}/100</div>
+          <div class="overview-label">Puntuación CWV</div>
         </div>
       </div>
+    </div>
+    ` : ''}
 
-      <!-- PERFORMANCE -->
-      <div class="card">
-        <h2>⚡ Performance</h2>
-        <div class="metric-row">
-          <span class="metric-label">Tiempo de carga:</span>
-          <span class="metric-value">${this.results.performance?.pageLoadTime || 'N/A'}</span>
+    <!-- Screenshots Section -->
+    ${this.results.pagespeedInsights?.mobile?.screenshot || this.results.pagespeedInsights?.desktop?.screenshot ? `
+    <div class="section">
+      <h2>📸 Evidencia Visual - PageSpeed Insights</h2>
+      <div class="screenshots-section">
+        ${this.results.pagespeedInsights.mobile?.screenshot ? `
+        <div class="screenshot-card">
+          <h4>📱 Resultados Móvil</h4>
+          <img src="data:image/png;base64,${this.results.pagespeedInsights.mobile.screenshot}"
+               alt="PageSpeed Insights - Móvil"
+               onerror="this.style.display='none';" />
         </div>
-        <div class="metric-row">
-          <span class="metric-label">Semáforo:</span>
-          <span class="status-badge" style="background-color: ${statusColor(this.results.performance?.status)}">
-            ${this.results.performance?.status?.toUpperCase() || 'UNKNOWN'}
-          </span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Imágenes:</span>
-          <span class="metric-value">${this.results.performance?.imageCount || 0}</span>
-        </div>
-        ${this.results.lighthouse ? `
-        <div class="metric-row">
-          <span class="metric-label">Lighthouse Score:</span>
-          <span class="status-badge" style="background-color: ${this.results.lighthouse.performance >= 90 ? '#10b981' : this.results.lighthouse.performance >= 50 ? '#f59e0b' : '#ef4444'}">
-            ${this.results.lighthouse.performance}/100
-          </span>
+        ` : ''}
+        ${this.results.pagespeedInsights.desktop?.screenshot ? `
+        <div class="screenshot-card">
+          <h4>🖥️ Resultados Desktop</h4>
+          <img src="data:image/png;base64,${this.results.pagespeedInsights.desktop.screenshot}"
+               alt="PageSpeed Insights - Desktop"
+               onerror="this.style.display='none';" />
         </div>
         ` : ''}
       </div>
-
-      <!-- CORE WEB VITALS -->
-      ${this.results.lighthouse ? `
-      <div class="card">
-        <h2>🎯 Core Web Vitals</h2>
-        <div class="metric-row">
-          <span class="metric-label">LCP (Largest Contentful Paint):</span>
-          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.lcp?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.lcp?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
-            ${this.results.lighthouse.coreWebVitals?.lcp?.displayValue || 'N/A'}
-          </span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">FID (First Input Delay):</span>
-          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.fid?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.fid?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
-            ${this.results.lighthouse.coreWebVitals?.fid?.displayValue || 'N/A'}
-          </span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">CLS (Cumulative Layout Shift):</span>
-          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.cls?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.cls?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
-            ${this.results.lighthouse.coreWebVitals?.cls?.displayValue || 'N/A'}
-          </span>
-        </div>
-      </div>
-      ` : ''}
-
-      <!-- LINKS ROTOS -->
-      <div class="card">
-        <h2>🔗 Links</h2>
-        <div class="metric-row">
-          <span class="metric-label">Total:</span>
-          <span class="metric-value">${this.results.links?.total || 0}</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Verificados:</span>
-          <span class="metric-value">${this.results.links?.checked || 0}</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Rotos:</span>
-          <span class="status-badge" style="background-color: ${statusColor(this.results.links?.status)}">
-            ${this.results.links?.broken || 0}
-          </span>
-        </div>
-      </div>
-
-      <!-- SEO -->
-      <div class="card">
-        <h2>📄 SEO</h2>
-        <div class="metric-row">
-          <span class="metric-label">Título:</span>
-          <span class="metric-value" style="font-size: 0.9em;">${(this.results.seo?.title || 'No encontrado').substring(0, 30)}...</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">H1:</span>
-          <span class="metric-value">${this.results.seo?.headings?.h1 || 0}</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Meta Description:</span>
-          <span class="status-badge" style="background-color: ${statusColor(this.results.seo?.status)}">
-            ${this.results.seo?.metaDescription ? '✓ Presente' : '✗ Falta'}
-          </span>
-        </div>
-      </div>
     </div>
+    ` : ''}
 
-    ${this.results.links?.brokenLinks?.length > 0 ? `
-    <div class="card">
-      <h2>🔗 Links Rotos Encontrados</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>URL</th>
-            <th>Estado/Error</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${this.results.links.brokenLinks.slice(0, 10).map(link => `
+    <!-- Comparison Table -->
+    ${comparisonTable.length > 0 ? `
+    <div class="section">
+      <h2>📊 Comparativa Detallada: Móvil vs Desktop</h2>
+      <div class="card">
+        <h3>🔍 Análisis Métrico Completo</h3>
+        <p style="color: #6b7280; margin-bottom: 20px;">
+          Comparación de todas las métricas de rendimiento entre dispositivos móviles y desktop.
+          Valores en verde indican mejor rendimiento.
+        </p>
+        <table class="comparison-table">
+          <thead>
             <tr>
-              <td>${link.url}</td>
-              <td>${link.status || link.error}</td>
+              <th>Métrica</th>
+              <th>Móvil</th>
+              <th>Desktop</th>
+              <th>Diferencia</th>
+              <th>Recomendación</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-    ` : ''}
-
-    ${this.results.technologies ? `
-    <div class="card">
-      <h2>🏗️ Tecnologías Detectadas</h2>
-      <div class="metric-row">
-        <span class="metric-label">CMS:</span>
-        <span class="metric-value">${this.results.technologies.cms ? this.results.technologies.cms.charAt(0).toUpperCase() + this.results.technologies.cms.slice(1) : 'No detectado'}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Framework:</span>
-        <span class="metric-value">${this.results.technologies.framework ? this.results.technologies.framework.charAt(0).toUpperCase() + this.results.technologies.framework.slice(1) : 'No detectado'}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Hosting:</span>
-        <span class="metric-value">${this.results.technologies.hosting ? this.results.technologies.hosting.charAt(0).toUpperCase() + this.results.technologies.hosting.slice(1) : 'No detectado'}</span>
-      </div>
-    </div>
-    ` : ''}
-
-    ${this.results.forensics ? `
-    <div class="card">
-      <h2>🔍 Análisis Forense de Rendimiento</h2>
-      <div class="metric-row">
-        <span class="metric-label">Health Score:</span>
-        <span class="status-badge" style="background-color: ${this.results.forensics.summary.healthScore >= 80 ? '#10b981' : this.results.forensics.summary.healthScore >= 60 ? '#f59e0b' : '#ef4444'}">
-          ${this.results.forensics.summary.healthScore}/100
-        </span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Estado:</span>
-        <span class="metric-value">${this.results.forensics.summary.status.charAt(0).toUpperCase() + this.results.forensics.summary.status.slice(1)}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Problemas Críticos:</span>
-        <span class="metric-value">${this.results.forensics.summary.criticalIssues}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Problemas Altos:</span>
-        <span class="metric-value">${this.results.forensics.summary.highIssues}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Total Problemas:</span>
-        <span class="metric-value">${this.results.forensics.summary.totalIssues}</span>
+          </thead>
+          <tbody>
+            ${comparisonTable.map(row => `
+            <tr>
+              <td>
+                <strong>${row.metric}</strong><br>
+                <small style="color: #6b7280;">${MetricsHelper.getMetricDefinition(row.key).description}</small>
+              </td>
+              <td class="mobile-col">
+                <div style="font-weight: bold; color: ${row.mobile.semaphor.color}">${row.mobile.display}</div>
+                <div style="font-size: 0.8em; color: #666;">${row.mobile.semaphor.label}</div>
+              </td>
+              <td class="desktop-col">
+                <div style="font-weight: bold; color: ${row.desktop.semaphor.color}">${row.desktop.display}</div>
+                <div style="font-size: 0.8em; color: #666;">${row.desktop.semaphor.label}</div>
+              </td>
+              <td class="diff-col diff-${row.difference.trend}">
+                ${row.difference.display}<br>
+                <small>${row.difference.description}</small>
+              </td>
+              <td style="font-size: 0.9em;">${row.difference.recommendation}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
     </div>
     ` : ''}
 
-    ${this.results.roi ? `
-    <div class="card">
-      <h2>💰 Análisis de ROI y Business Intelligence</h2>
-      <div class="metric-row">
-        <span class="metric-label">Aumento Anual Estimado:</span>
-        <span class="metric-value" style="color: #10b981; font-weight: bold;">$${this.results.roi.financials.annualRevenueIncrease.toLocaleString()}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Payback:</span>
-        <span class="status-badge" style="background-color: ${this.results.roi.payback.recommendation.includes('EXCELENTE') ? '#10b981' : this.results.roi.payback.recommendation.includes('BUENO') ? '#f59e0b' : '#ef4444'}">
-          ${this.results.roi.payback.months.low.toFixed(1)} meses
-        </span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Mejora en Conversión:</span>
-        <span class="metric-value">${(this.results.roi.conversionImpact.totalImpact * 100).toFixed(1)}%</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Confianza del Análisis:</span>
-        <span class="metric-value">${this.results.roi.confidence}%</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Recomendación Payback:</span>
-        <span class="metric-value" style="font-size: 0.9em;">${this.results.roi.payback.recommendation}</span>
-      </div>
-    </div>
-    ` : ''}
-
-    ${this.results.engineeringPlan ? `
-    <div class="card">
-      <h2>📋 Plan de Implementación de Ingeniería</h2>
-      <div class="metric-row">
-        <span class="metric-label">Prioridad General:</span>
-        <span class="status-badge" style="background-color: ${this.results.engineeringPlan.summary.priority === 'CRITICAL' ? '#ef4444' : this.results.engineeringPlan.summary.priority === 'HIGH' ? '#f59e0b' : '#10b981'}">
-          ${this.results.engineeringPlan.summary.priority}
-        </span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Timeline Estimado:</span>
-        <span class="metric-value">${this.results.engineeringPlan.timeline.totalWeeks} semanas</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Presupuesto Estimado:</span>
-        <span class="metric-value">$${this.results.engineeringPlan.budget.total.toLocaleString()}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Problemas Críticos:</span>
-        <span class="metric-value">${this.results.engineeringPlan.summary.criticalIssues}</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">Problemas Altos:</span>
-        <span class="metric-value">${this.results.engineeringPlan.summary.highIssues}</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>📅 Fases de Implementación</h2>
-      ${Object.entries(this.results.engineeringPlan.phases).map(([phaseKey, phase]) => `
-        ${phase.issues && phase.issues.length > 0 ? `
-          <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <h3 style="color: #1f2937; margin-bottom: 10px;">${phase.name}</h3>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; font-size: 0.9em;">
-              <span><strong>Duración:</strong> ${phase.duration}</span>
-              <span><strong>Issues:</strong> ${phase.issues.length}</span>
-            </div>
-            <div style="margin-top: 10px;">
-              ${phase.issues.slice(0, 3).map(issue => `
-                <div style="margin: 5px 0; padding: 8px; background: #f9fafb; border-radius: 4px; font-size: 0.85em;">
-                  <strong>${issue.title}</strong> - ${issue.description}
-                </div>
-              `).join('')}
-              ${phase.issues.length > 3 ? `<div style="font-size: 0.8em; color: #6b7280;">...y ${phase.issues.length - 3} issues más</div>` : ''}
-            </div>
-          </div>
-        ` : ''}
-      `).join('')}
-    </div>
-    ` : ''}
-
-    ${(() => {
-      const technologyDetector = new TechnologyDetector();
-      const techRecommendations = this.results.technologies ?
-        technologyDetector.getTechnologyRecommendations(this.results.technologies) : [];
-      const generalRecommendations = this.generateRecommendations();
-      const recommendations = [...techRecommendations, ...generalRecommendations];
-      if (recommendations.length === 0) {
-        return `
-    <div class="card">
-      <h2>✅ Recomendaciones</h2>
-      <p style="color: #10b981; font-weight: bold;">¡Excelente! No se encontraron problemas críticos que requieran atención inmediata.</p>
-      <p style="color: #6b7280; margin-top: 10px;">El sitio web está funcionando correctamente y cumple con los estándares básicos de calidad.</p>
-    </div>
-        `;
-      }
-
-      return `
-    <div class="card recommendations">
-      <h2>💡 Recomendaciones de Mejora</h2>
-      ${recommendations.map(rec => `
-        <div class="recommendation-item recommendation-${rec.priority.toLowerCase()}">
+    <!-- Actionable Recommendations -->
+    ${actionableRecs.length > 0 ? `
+    <div class="section">
+      <h2>💡 Recomendaciones Accionables</h2>
+      <div class="recommendations-grid">
+        ${actionableRecs.map(rec => `
+        <div class="recommendation-card recommendation-${rec.priority.toLowerCase()}">
           <div class="recommendation-header">
-            <span class="recommendation-category">${rec.category}</span>
-            <span class="recommendation-priority priority-${rec.priority.toLowerCase()}">${rec.priority}</span>
+            <div class="recommendation-severity severity-${rec.priority.toLowerCase()}">
+              <span>${rec.severity}</span>
+              <span>${rec.priority}</span>
+            </div>
+            <div style="font-size: 0.9em; color: #6b7280;">${rec.category}</div>
           </div>
-          <div class="recommendation-issue">${rec.issue}</div>
-          <div class="recommendation-action">${rec.action}</div>
-        </div>
-      `).join('')}
-    </div>
-      `;
-    })()}
 
+          <div class="recommendation-issue">${rec.issue}</div>
+          <div class="recommendation-impact">${rec.impact}</div>
+
+          <div class="recommendation-actions">
+            <strong>Acciones específicas:</strong>
+            ${rec.specificActions.map(action => `
+              <div class="recommendation-action">${action}</div>
+            `).join('')}
+          </div>
+
+          <div class="recommendation-outcomes">
+            <div class="outcome-item">
+              <div class="outcome-label">Mejora Esperada</div>
+              <div class="outcome-value">${rec.expectedImprovement}</div>
+            </div>
+            <div class="outcome-item">
+              <div class="outcome-label">Esfuerzo</div>
+              <div class="outcome-value">${rec.effort}</div>
+            </div>
+            <div class="outcome-item">
+              <div class="outcome-label">ROI</div>
+              <div class="outcome-value">${rec.businessImpact}</div>
+            </div>
+          </div>
+        </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Footer -->
     <div class="footer">
-      <p>Generado por Web Audit Disconnect 🔍 | ${new Date().toLocaleString()}</p>
+      <p>
+        <strong>Web Audit Disconnect</strong> | Generado con PageSpeed Insights API Oficial<br>
+        ${new Date().toLocaleString('es-ES')} | Reporte basado en datos reales de Google
+      </p>
     </div>
   </div>
 </body>
