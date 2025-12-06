@@ -1,7 +1,7 @@
 import axios from 'axios';
 import cheerio from 'cheerio';
 import { writeFileSync, mkdirSync } from 'fs';
-import { LighthouseService } from './services/lighthouse.js';
+//import { LighthouseService } from './services/lighthouse.js';
 import { ReportGenerator } from './report-generator.js';
 
 const logger = {
