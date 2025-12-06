@@ -1,7 +1,8 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { writeFileSync, mkdirSync } from 'fs';
-//import { LighthouseService } from './services/lighthouse.js';
+import { LighthouseService } from './lighthouse-service.js';
+import { TechnologyDetector } from './technology-detector.js';
 import { ReportGenerator } from './report-generator.js';
 
 const logger = {
@@ -60,6 +61,11 @@ export class WebAudit {
       logger.info(`Buscando links rotos en: ${this.url}`);
       const response = await axios.get(this.url, { timeout: this.options.timeout });
       const $ = cheerio.load(response.data);
+
+      // Guardar el HTML y headers para análisis posterior
+      this.pageHTML = response.data;
+      this.responseHeaders = response.headers;
+
       const links = [];
       const broken = [];
       const checked = new Set();
@@ -182,6 +188,10 @@ export class WebAudit {
     logger.info(`URL: ${this.url}`);
     logger.info(`========================================`);
 
+    // Initialize services
+    const lighthouseService = new LighthouseService();
+    const technologyDetector = new TechnologyDetector();
+
     this.results = {
       client: this.clientName,
       url: this.url,
@@ -190,8 +200,14 @@ export class WebAudit {
       links: await this.checkBrokenLinks(),
       uptime: await this.checkUptime(),
       performance: await this.checkPerformance(),
-      seo: await this.checkSEO()
+      seo: await this.checkSEO(),
+      lighthouse: await lighthouseService.runLighthouse(this.url),
+      technologies: technologyDetector.detect(this.pageHTML, this.responseHeaders),
+      pageHTML: this.pageHTML // Incluir el HTML para análisis posterior
     };
+
+    // Cleanup
+    await lighthouseService.cleanup();
 
     const duration = ((Date.now() - this.startTime) / 1000).toFixed(2);
     this.results.duration = `${duration}s`;

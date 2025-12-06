@@ -1,5 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import * as cheerio from 'cheerio';
+import { TechnologyDetector } from './technology-detector.js';
 
 export class ReportGenerator {
   constructor(auditResults) {
@@ -7,6 +9,146 @@ export class ReportGenerator {
     this.timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     this.reportDir = 'reports';
     mkdirSync(this.reportDir, { recursive: true });
+  }
+
+  generateRecommendations() {
+    const recommendations = [];
+
+    // SSL/HTTPS Recommendations
+    if (this.results.ssl?.status !== 'valid') {
+      recommendations.push({
+        priority: 'CRITICAL',
+        category: 'SSL/HTTPS',
+        issue: 'Certificado SSL no válido o expirado',
+        action: 'Renovar certificado SSL inmediatamente para evitar errores HTTPS'
+      });
+    }
+
+    // Performance Recommendations
+    const loadTime = parseInt(this.results.performance?.pageLoadTime?.replace('ms', '') || 0);
+    if (loadTime > 3000) {
+      recommendations.push({
+        priority: 'HIGH',
+        category: 'Performance',
+        issue: `Tiempo de carga alto: ${this.results.performance?.pageLoadTime}`,
+        action: 'Optimizar imágenes, reducir scripts innecesarios y usar CDN'
+      });
+    }
+
+    const imageCount = this.results.performance?.imageCount || 0;
+    if (imageCount > 15) {
+      // Verificar tecnologías ya implementadas
+      const hasLazyLoading = this.checkLazyLoading();
+      const hasWebP = this.checkWebPSupport();
+
+      let action = '';
+      let priority = 'MEDIUM';
+
+      if (!hasLazyLoading && !hasWebP) {
+        action = 'Implementar lazy loading en imágenes y convertir a formato WebP para mejor performance';
+      } else if (!hasLazyLoading) {
+        action = 'Implementar lazy loading en imágenes para carga más eficiente';
+        priority = 'LOW'; // Menos crítico si ya usa WebP
+      } else if (!hasWebP) {
+        action = 'Convertir imágenes al formato WebP para reducir tamaño de archivos';
+        priority = 'LOW'; // Menos crítico si ya usa lazy loading
+      } else {
+        action = 'Optimizar imágenes existentes: revisar compresión y tamaños';
+        priority = 'LOW'; // Ya tiene las mejores prácticas implementadas
+      }
+
+      recommendations.push({
+        priority: priority,
+        category: 'Performance',
+        issue: `${imageCount} imágenes encontradas en la página`,
+        action: action
+      });
+    }
+
+    // Links Recommendations
+    const brokenLinks = this.results.links?.broken || 0;
+    if (brokenLinks > 5) {
+      recommendations.push({
+        priority: 'HIGH',
+        category: 'Links',
+        issue: `${brokenLinks} links rotos encontrados`,
+        action: 'Reparar o actualizar URLs rotas para mejorar UX'
+      });
+    }
+
+    // SEO Recommendations
+    const titleLength = (this.results.seo?.title || '').length;
+    if (titleLength > 60) {
+      recommendations.push({
+        priority: 'LOW',
+        category: 'SEO',
+        issue: `Título muy largo: ${titleLength} caracteres`,
+        action: 'Acortar título a 50-60 caracteres para mejor SEO'
+      });
+    }
+
+    if (!this.results.seo?.metaDescription) {
+      recommendations.push({
+        priority: 'MEDIUM',
+        category: 'SEO',
+        issue: 'Meta description faltante',
+        action: 'Agregar meta description de 150-160 caracteres'
+      });
+    }
+
+    const h1Count = this.results.seo?.headings?.h1 || 0;
+    if (h1Count === 0) {
+      recommendations.push({
+        priority: 'MEDIUM',
+        category: 'SEO',
+        issue: 'No se encontraron headings H1',
+        action: 'Agregar al menos un H1 descriptivo por página'
+      });
+    }
+
+    // Uptime Recommendations
+    const responseTime = parseInt(this.results.uptime?.responseTime?.replace('ms', '') || 0);
+    if (responseTime > 1000) {
+      recommendations.push({
+        priority: 'MEDIUM',
+        category: 'Uptime',
+        issue: `Response time alto: ${this.results.uptime?.responseTime}`,
+        action: 'Optimizar servidor, base de datos y configuración'
+      });
+    }
+
+    return recommendations;
+  }
+
+  checkLazyLoading() {
+    // Necesitamos el HTML guardado durante la auditoría
+    if (!this.results.pageHTML) {
+      return false;
+    }
+
+    const $ = cheerio.load(this.results.pageHTML);
+    const lazyImages = $('img[loading="lazy"]').length;
+    const totalImages = $('img').length;
+
+    // Si más del 50% de las imágenes usan lazy loading, consideramos que está implementado
+    return lazyImages > 0 && (lazyImages / totalImages) > 0.5;
+  }
+
+  checkWebPSupport() {
+    // Necesitamos el HTML guardado durante la auditoría
+    if (!this.results.pageHTML) {
+      return false;
+    }
+
+    const $ = cheerio.load(this.results.pageHTML);
+
+    // Buscar elementos <picture> con WebP
+    const webpSources = $('picture source[type="image/webp"]').length;
+
+    // Buscar imágenes con extensión .webp
+    const webpImages = $('img[src$=".webp"]').length;
+
+    return webpSources > 0 || webpImages > 0;
   }
 
   generateHTML() {
@@ -31,8 +173,8 @@ export class ReportGenerator {
   <title>Audi toría Web - ${this.results.client}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
       min-height: 100vh;
@@ -49,16 +191,16 @@ export class ReportGenerator {
     .header-info { display: flex; gap: 20px; flex-wrap: wrap; color: #6b7280; font-size: 0.95em; }
     .header-info p { display: flex; align-items: center; gap: 8px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .card { 
-      background: white; 
-      padding: 20px; 
+    .card {
+      background: white;
+      padding: 20px;
       border-radius: 10px;
       box-shadow: 0 5px 15px rgba(0,0,0,0.1);
       border-left: 5px solid #667eea;
     }
-    .card h2 { 
-      font-size: 1.1em; 
-      margin-bottom: 15px; 
+    .card h2 {
+      font-size: 1.1em;
+      margin-bottom: 15px;
       color: #1f2937;
       display: flex;
       align-items: center;
@@ -89,6 +231,39 @@ export class ReportGenerator {
     th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; color: #374151; }
     td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     tr:hover { background: #f9fafb; }
+    .recommendations { margin-bottom: 30px; }
+    .recommendation-item {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 4px solid #6b7280;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .recommendation-critical { border-left-color: #ef4444; }
+    .recommendation-high { border-left-color: #f59e0b; }
+    .recommendation-medium { border-left-color: #3b82f6; }
+    .recommendation-low { border-left-color: #10b981; }
+    .recommendation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .recommendation-priority {
+      font-size: 0.75em;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 12px;
+      color: white;
+    }
+    .priority-critical { background-color: #ef4444; }
+    .priority-high { background-color: #f59e0b; }
+    .priority-medium { background-color: #3b82f6; }
+    .priority-low { background-color: #10b981; }
+    .recommendation-issue { font-weight: bold; color: #1f2937; margin-bottom: 5px; }
+    .recommendation-action { color: #6b7280; font-size: 0.9em; }
+    .recommendation-category { font-size: 0.8em; color: #9ca3af; font-weight: 500; }
     .footer { text-align: center; color: white; margin-top: 30px; font-size: 0.9em; }
   </style>
 </head>
@@ -160,7 +335,40 @@ export class ReportGenerator {
           <span class="metric-label">Imágenes:</span>
           <span class="metric-value">${this.results.performance?.imageCount || 0}</span>
         </div>
+        ${this.results.lighthouse ? `
+        <div class="metric-row">
+          <span class="metric-label">Lighthouse Score:</span>
+          <span class="status-badge" style="background-color: ${this.results.lighthouse.performance >= 90 ? '#10b981' : this.results.lighthouse.performance >= 50 ? '#f59e0b' : '#ef4444'}">
+            ${this.results.lighthouse.performance}/100
+          </span>
+        </div>
+        ` : ''}
       </div>
+
+      <!-- CORE WEB VITALS -->
+      ${this.results.lighthouse ? `
+      <div class="card">
+        <h2>🎯 Core Web Vitals</h2>
+        <div class="metric-row">
+          <span class="metric-label">LCP (Largest Contentful Paint):</span>
+          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.lcp?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.lcp?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
+            ${this.results.lighthouse.coreWebVitals?.lcp?.displayValue || 'N/A'}
+          </span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">FID (First Input Delay):</span>
+          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.fid?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.fid?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
+            ${this.results.lighthouse.coreWebVitals?.fid?.displayValue || 'N/A'}
+          </span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">CLS (Cumulative Layout Shift):</span>
+          <span class="status-badge" style="background-color: ${this.results.lighthouse.coreWebVitals?.cls?.score >= 0.75 ? '#10b981' : this.results.lighthouse.coreWebVitals?.cls?.score >= 0.5 ? '#f59e0b' : '#ef4444'}">
+            ${this.results.lighthouse.coreWebVitals?.cls?.displayValue || 'N/A'}
+          </span>
+        </div>
+      </div>
+      ` : ''}
 
       <!-- LINKS ROTOS -->
       <div class="card">
@@ -222,6 +430,57 @@ export class ReportGenerator {
       </table>
     </div>
     ` : ''}
+
+    ${this.results.technologies ? `
+    <div class="card">
+      <h2>🏗️ Tecnologías Detectadas</h2>
+      <div class="metric-row">
+        <span class="metric-label">CMS:</span>
+        <span class="metric-value">${this.results.technologies.cms ? this.results.technologies.cms.charAt(0).toUpperCase() + this.results.technologies.cms.slice(1) : 'No detectado'}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Framework:</span>
+        <span class="metric-value">${this.results.technologies.framework ? this.results.technologies.framework.charAt(0).toUpperCase() + this.results.technologies.framework.slice(1) : 'No detectado'}</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Hosting:</span>
+        <span class="metric-value">${this.results.technologies.hosting ? this.results.technologies.hosting.charAt(0).toUpperCase() + this.results.technologies.hosting.slice(1) : 'No detectado'}</span>
+      </div>
+    </div>
+    ` : ''}
+
+    ${(() => {
+      const technologyDetector = new TechnologyDetector();
+      const techRecommendations = this.results.technologies ?
+        technologyDetector.getTechnologyRecommendations(this.results.technologies) : [];
+      const generalRecommendations = this.generateRecommendations();
+      const recommendations = [...techRecommendations, ...generalRecommendations];
+      if (recommendations.length === 0) {
+        return `
+    <div class="card">
+      <h2>✅ Recomendaciones</h2>
+      <p style="color: #10b981; font-weight: bold;">¡Excelente! No se encontraron problemas críticos que requieran atención inmediata.</p>
+      <p style="color: #6b7280; margin-top: 10px;">El sitio web está funcionando correctamente y cumple con los estándares básicos de calidad.</p>
+    </div>
+        `;
+      }
+
+      return `
+    <div class="card recommendations">
+      <h2>💡 Recomendaciones de Mejora</h2>
+      ${recommendations.map(rec => `
+        <div class="recommendation-item recommendation-${rec.priority.toLowerCase()}">
+          <div class="recommendation-header">
+            <span class="recommendation-category">${rec.category}</span>
+            <span class="recommendation-priority priority-${rec.priority.toLowerCase()}">${rec.priority}</span>
+          </div>
+          <div class="recommendation-issue">${rec.issue}</div>
+          <div class="recommendation-action">${rec.action}</div>
+        </div>
+      `).join('')}
+    </div>
+      `;
+    })()}
 
     <div class="footer">
       <p>Generado por Web Audit Disconnect 🔍 | ${new Date().toLocaleString()}</p>
